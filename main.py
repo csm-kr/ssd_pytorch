@@ -26,9 +26,11 @@ def main():
 
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--save_path', type=str, default='./saves')
-    parser.add_argument('--save_file_name', type=str, default="ssd_vgg_16")
-    parser.add_argument('--conf_thres', type=float, default=0.01)
-    parser.add_argument('--start_epoch', type=int, default=0)        # to resume
+    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
+    parser.add_argument('--conf_thres', type=float, default=0.1)
+    parser.add_argument('--start_epoch', type=int, default=1)        # to resume
+    parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
+    # ubuntu : '/home/cvmlserver3/Sungmin/data/VOC_ROOT'
     parser.add_argument('--os_type', type=str, default='window',
                         help='choose the your os type between window and ubuntu')
 
@@ -42,16 +44,8 @@ def main():
     vis = visdom.Visdom()
 
     # 4. data set
-    if opts.os_type == 'ubuntu':
-        ubuntu_root = "/home/cvmlserver3/Sungmin/data/VOC_ROOT"
-        data_root = ubuntu_root
-
-    elif opts.os_type == 'window':
-        window_root = "D:\Data\VOC_ROOT"
-        data_root = window_root
-
-    train_set = VOC_Dataset(root=data_root, split='TRAIN')
-    test_set = VOC_Dataset(root=data_root, split='TEST')
+    train_set = VOC_Dataset(root=opts.data_root, split='TRAIN')
+    test_set = VOC_Dataset(root=opts.data_root, split='TEST')
 
     # 5. data loader
     train_loader = torch.utils.data.DataLoader(train_set,

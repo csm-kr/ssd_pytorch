@@ -2,13 +2,17 @@ import torch
 import torch.nn.functional as F
 from torchvision.ops.boxes import nms as torchvision_nms
 from config import device
-
+import numpy as np
 
 voc_labels = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
               'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
+
 label_map = {k: v + 1 for v, k in enumerate(voc_labels)}
 label_map['background'] = 0
 rev_label_map = {v: k for k, v in label_map.items()}  # Inverse mapping
+
+np.random.seed(0)
+voc_color_array = np.random.randint(256, size=(21, 3))
 
 
 def cxcy_to_xy(cxcy):

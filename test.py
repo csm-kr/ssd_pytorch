@@ -68,13 +68,8 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
                               loss=loss,
                               time=toc))
 
-        window_test_root ="D:\Data\VOC_ROOT\TEST\VOC2007\Annotations"
-        ubuntu_test_root ="/home/cvmlserver3/Sungmin/data/VOC_ROOT/TEST/VOC2007/Annotations"
-        if opts.os_type == 'window':
-            root = window_test_root
-        elif opts.os_type == 'ubuntu':
-            root = ubuntu_test_root
-        mAP = voc_eval(root, det_additional, det_boxes, det_scores, det_labels)
+        test_root = os.path.join(opts.data_root, 'TEST', 'VOC2007', 'Annotations')
+        mAP = voc_eval(test_root, det_additional, det_boxes, det_scores, det_labels)
 
         if vis is not None:
             # loss plot
@@ -101,13 +96,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_path', type=str, default='./saves')
     parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
-    parser.add_argument('--save_path', type=str, default='./saves')
     parser.add_argument('--conf_thres', type=float, default=0.01)
+    parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
+    # "/home/cvmlserver3/Sungmin/data/VOC_ROOT"
     test_opts = parser.parse_args()
     print(test_opts)
 
     # 1. epoch
-    epoch = 186
+    epoch = 0
 
     # 2. device
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -116,9 +112,8 @@ if __name__ == "__main__":
     vis = None
 
     # 4. data set
-    window_root = "D:\Data\VOC_ROOT"
-    ubuntu_root = "/home/cvmlserver3/Sungmin/data/VOC_ROOT"
-    test_set = VOC_Dataset(root=window_root, split='TEST')
+    test_set = VOC_Dataset(root=test_opts.data_root, split='TEST')
+
     # 5. data loader
     test_loader = torch.utils.data.DataLoader(test_set,
                                               batch_size=1,
@@ -138,9 +133,10 @@ if __name__ == "__main__":
          test_loader=test_loader,
          model=model,
          criterion=criterion,
-         opts=test_opts,
          priors_cxcy=priors_cxcy,
-         eval=True)
+         eval=True,
+         opts=test_opts,
+         )
 
 
 

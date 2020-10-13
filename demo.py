@@ -7,8 +7,9 @@ import os
 import glob
 import cv2
 import time
-from utils import detect_objects, rev_label_map
+from utils import detect_objects, rev_label_map, voc_color_array
 from config import device
+import argparse
 
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -96,12 +97,21 @@ def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None)
 
 if __name__ == '__main__':
 
-    visualization = True
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--save_path', type=str, default='./saves')
+    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
+    parser.add_argument('--conf_thres', type=float, default=0.35)
+    parser.add_argument('--img_path', type=str, default='D:\Data\VOC_ROOT\TEST\VOC2007\JPEGImages')
+    parser.add_argument('--visualization', type=bool, default=True)
+    demo_opts = parser.parse_args()
+    print(demo_opts)
+
+    visualization = demo_opts.visualization
     model = SSD(VGG(pretrained=True))
 
     # use custom training pth file
-    epoch = 59
-    checkpoint = torch.load(os.path.join('./saves', 'ssd_vgg_16') + '.{}.pth.tar'.format(epoch))
+    epoch = 0
+    checkpoint = torch.load(os.path.join(demo_opts.save_path, demo_opts.save_file_name) + '.{}.pth.tar'.format(epoch))
     model.load_state_dict(checkpoint['model_state_dict'])
 
     # anchor box
@@ -117,8 +127,7 @@ if __name__ == '__main__':
                                      std=[0.229, 0.224, 0.225])
 
     # voc test
-    img_path = 'D:\Data\VOC_ROOT\TEST\VOC2007\JPEGImages'
-    img_paths = glob.glob(os.path.join(img_path, '*.jpg'))
+    img_paths = glob.glob(os.path.join(demo_opts.img_path, '*.jpg'))
 
     # ubuntu voc test
     # img_path = "/home/cvmlserver3/Sungmin/data/VOC_ROOT/TEST/VOC2007/JPEGImages"
@@ -137,7 +146,8 @@ if __name__ == '__main__':
 
             # for each a image, outputs are boxes and labels.
             img = Image.open(img_path, mode='r').convert('RGB')
-            boxes, labels, scores, det_time = demo(img, model=model, min_score=0.35, max_overlap=0.45, top_k=200,
+            boxes, labels, scores, det_time = demo(img, model=model, min_score=demo_opts.conf_thres,
+                                                   max_overlap=0.45, top_k=200,
                                                    priors_cxcy=priors_cxcy)
 
             # FIXME save for mAP??? --> ./pred
@@ -151,46 +161,41 @@ if __name__ == '__main__':
 
             if visualization:
 
-                # for plt
-                # image = Image.open(img_path)
-                # image_np = np.array(image)
-                # plt.figure('result')
-                # plt.imshow(image_np)
-                # scores = scores[0]  # score is list of tensors
-                #
-                # for i in range(len(boxes)):
-                #     print(labels[i])
-                #     plt.text(x=boxes[i][0],
-                #              y=boxes[i][1],
-                #              s=labels[i],
-                #              # s=voc_labels_array[int(labels[i].item()) - 1] + str(scores[i].item()),
-                #              fontsize=10,
-                #              bbox=dict(facecolor='red', alpha=0.5))
-                #
-                #     plt.gca().add_patch(Rectangle(xy=(boxes[i][0], boxes[i][1]),
-                #                                   width=boxes[i][2] - boxes[i][0],
-                #                                   height=boxes[i][3] - boxes[i][1],
-                #                                   linewidth=1, edgecolor='r', facecolor='none'))
-                #
-                # plt.show()
-
-
+                voc_labels_array = list(rev_label_map.values())
                 img = cv2.imread(img_path)
                 scores = scores[0]  # score is list of tensors
                 for i in range(len(boxes)):
+
+                    x_min = boxes[i][0]
+                    y_min = boxes[i][1]
+                    x_max = boxes[i][2]
+                    y_max = boxes[i][3]
+
                     cv2.rectangle(img,
-                                  pt1=(boxes[i][0], boxes[i][1]),
-                                  pt2=(boxes[i][2], boxes[i][3]),
-                                  color=(0, 0, 255),
+                                  pt1=(x_min, y_min),
+                                  pt2=(x_max, y_max),
+                                  color=voc_color_array[voc_labels_array.index(labels[i])].tolist(),
                                   thickness=2)
 
+                    text_size = cv2.getTextSize(text=labels[i],
+                                                fontFace=cv2.FONT_HERSHEY_PLAIN,
+                                                fontScale=1,
+                                                thickness=1)[0]
+
+                    # text box
+                    cv2.rectangle(img,
+                                  pt1=(x_min, y_min),
+                                  pt2=(x_min + text_size[0], y_min + text_size[1] + 3),
+                                  color=voc_color_array[voc_labels_array.index(labels[i])].tolist(),
+                                  thickness=-1)
+
+                    # text
                     cv2.putText(img,
                                 text=labels[i],
-                                org=(boxes[i][0] + 10, boxes[i][1] + 10),
-                                fontFace=0, fontScale=0.7,
-                                color=(0, 255, 0))
-
-
+                                org=(x_min + 10, y_min + 10),
+                                fontFace=0,
+                                fontScale=0.4,
+                                color=(255, 255, 255))
 
                 cv2.imshow('input', img)
                 cv2.waitKey(0)
