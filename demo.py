@@ -17,30 +17,29 @@ import numpy as np
 from matplotlib.patches import Rectangle
 
 
-def save_det_txt_for_mAP(file_name, bbox, cls, score):
+def save_det_txt_for_mAP(file_name, boxes, labels, scores):
     '''
     file name 을 mAP 에 넣을 수 있도록 만드는 부분
     :param file_name:
     :param bbox:
-    :param cls:
+    :param label:
     :param score:
     :return:
     '''
-
-    score = score[0]
     if not os.path.isdir('./pred'):
         os.mkdir('./pred')
     f = open(os.path.join("./pred", file_name + '.txt'), 'w')
-    for idx, t in enumerate(bbox):
-        if cls[idx] == 'background':
+
+    for idx, box in enumerate(boxes):
+        if labels[idx] == 'background':
             continue
-        class_name = cls[idx]
+        class_name = labels[idx]
         data = class_name + \
-               " " + str(score[idx].item()) + \
-               " " + str(t[0].item()) + \
-               " " + str(t[1].item()) + \
-               " " + str(t[2].item()) + \
-               " " + str(t[3].item()) + "\n"
+               " " + str(scores[idx].item()) + \
+               " " + str(box[0].item()) + \
+               " " + str(box[1].item()) + \
+               " " + str(box[2].item()) + \
+               " " + str(box[3].item()) + "\n"
         f.write(data)
     f.close()
 
@@ -72,7 +71,9 @@ def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None)
     predicted_locs = predicted_locs.to('cpu')
     predicted_scores = predicted_scores.to('cpu')
 
-    det_boxes, det_labels, det_scores = detect_objects(priors_cxcy, predicted_locs, predicted_scores,
+    det_boxes, det_labels, det_scores = detect_objects(priors_cxcy,
+                                                       predicted_locs,
+                                                       predicted_scores,
                                                        min_score=min_score,
                                                        max_overlap=max_overlap,
                                                        top_k=top_k,
@@ -82,7 +83,8 @@ def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None)
     detection_time = time.time() - tic
 
     # 배치를 벗겨내는 부분
-    det_boxes = det_boxes[0].to('cpu')
+    det_boxes = det_boxes.to('cpu')
+    det_scores = det_scores.to('cpu')
 
     # Transform to original image dimensions
     original_dims = torch.FloatTensor(
@@ -90,7 +92,7 @@ def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None)
     det_boxes = det_boxes * original_dims
     # 소수를 실제 bbox 좌표로 변경하는 부분
     # Decode class integer labels
-    det_labels = [rev_label_map[l] for l in det_labels[0].to('cpu').tolist()]
+    det_labels = [rev_label_map[l] for l in det_labels.to('cpu').tolist()]
 
     return det_boxes, det_labels, det_scores, detection_time
 
@@ -146,13 +148,13 @@ if __name__ == '__main__':
 
             # for each a image, outputs are boxes and labels.
             img = Image.open(img_path, mode='r').convert('RGB')
-            boxes, labels, scores, det_time = demo(img, model=model, min_score=demo_opts.conf_thres,
-                                                   max_overlap=0.45, top_k=200,
-                                                   priors_cxcy=priors_cxcy)
+            pred_boxes, pred_labels, pred_scores, det_time = demo(img, model=model, min_score=demo_opts.conf_thres,
+                                                                  max_overlap=0.45, top_k=200,
+                                                                  priors_cxcy=priors_cxcy)
 
             # FIXME save for mAP??? --> ./pred
             name = os.path.basename(img_path).split('.')[0]  # .replace('.jpg', '.txt')
-            save_det_txt_for_mAP(file_name=name, bbox=boxes, cls=labels, score=scores)
+            save_det_txt_for_mAP(file_name=name, boxes=pred_boxes, labels=pred_labels, scores=pred_scores)
 
             total_time += det_time
             if i % 100 == 0:
@@ -163,21 +165,20 @@ if __name__ == '__main__':
 
                 voc_labels_array = list(rev_label_map.values())
                 img = cv2.imread(img_path)
-                scores = scores[0]  # score is list of tensors
-                for i in range(len(boxes)):
+                for i in range(len(pred_boxes)):
 
-                    x_min = boxes[i][0]
-                    y_min = boxes[i][1]
-                    x_max = boxes[i][2]
-                    y_max = boxes[i][3]
+                    x_min = pred_boxes[i][0]
+                    y_min = pred_boxes[i][1]
+                    x_max = pred_boxes[i][2]
+                    y_max = pred_boxes[i][3]
 
                     cv2.rectangle(img,
                                   pt1=(x_min, y_min),
                                   pt2=(x_max, y_max),
-                                  color=voc_color_array[voc_labels_array.index(labels[i])].tolist(),
+                                  color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
                                   thickness=2)
 
-                    text_size = cv2.getTextSize(text=labels[i],
+                    text_size = cv2.getTextSize(text=pred_labels[i],
                                                 fontFace=cv2.FONT_HERSHEY_PLAIN,
                                                 fontScale=1,
                                                 thickness=1)[0]
@@ -186,12 +187,12 @@ if __name__ == '__main__':
                     cv2.rectangle(img,
                                   pt1=(x_min, y_min),
                                   pt2=(x_min + text_size[0], y_min + text_size[1] + 3),
-                                  color=voc_color_array[voc_labels_array.index(labels[i])].tolist(),
+                                  color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
                                   thickness=-1)
 
                     # text
                     cv2.putText(img,
-                                text=labels[i],
+                                text=pred_labels[i],
                                 org=(x_min + 10, y_min + 10),
                                 fontFace=0,
                                 fontScale=0.4,

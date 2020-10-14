@@ -87,7 +87,7 @@ class COCO_Dataset(Dataset):
         annotation = self.load_annotations(idx)
 
         boxes = torch.FloatTensor(annotation[:, :4])
-        labels = torch.LongTensor(annotation[:, 4]) + 1    # FIXME
+        labels = torch.LongTensor(annotation[:, 4]) + 1   # FIXME
 
         if labels.nelement() == 0:  # no labeled img exists.
             visualize = True
@@ -111,7 +111,7 @@ class COCO_Dataset(Dataset):
             plt.imshow(img_vis)
 
             for i in range(len(boxes)):
-                print(boxes[i], labels[i])
+                print(boxes[i], labels[i], ':', self.labels[labels[i].item()])
                 plt.gca().add_patch(Rectangle((boxes[i][0] * resized_img_size, boxes[i][1] * resized_img_size),
                                               boxes[i][2] * resized_img_size - boxes[i][0] * resized_img_size,
                                               boxes[i][3] * resized_img_size - boxes[i][1] * resized_img_size,
@@ -127,7 +127,7 @@ class COCO_Dataset(Dataset):
 
     def load_image(self, image_index):
         image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
-        path = os.path.join(self.root_dir, 'images', self.set_name, image_info['file_name'])
+        path = os.path.join(self.root_dir, 'images', self.set_name, image_info['file_name'])  # file name 으로 path 읽음
         image = Image.open(path).convert('RGB')
         return image, (image_info['width'], image_info['height'])
 
@@ -143,6 +143,7 @@ class COCO_Dataset(Dataset):
         # parse annotations
         coco_annotations = self.coco.loadAnns(annotations_ids)
         for idx, a in enumerate(coco_annotations):
+            # a 는 하나의 object
 
             # some annotations have basically no width / height, skip them
             if a['bbox'][2] < 1 or a['bbox'][3] < 1:

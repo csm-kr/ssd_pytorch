@@ -9,7 +9,12 @@ def train(epoch, device, vis, train_loader, model, criterion, optimizer, schedul
     tic = time.time()
     model.train()
 
-    for idx, (images, boxes, labels, _) in enumerate(train_loader):
+    for idx, datas in enumerate(train_loader):
+
+        images = datas[0]
+        boxes = datas[1]
+        labels = datas[2]
+
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]

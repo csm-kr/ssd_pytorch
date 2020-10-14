@@ -1,5 +1,6 @@
 import torch
 from dataset.voc_dataset import VOC_Dataset
+from dataset.coco_dataset import COCO_Dataset
 from loss import MultiBoxLoss
 import visdom
 import argparse
@@ -26,9 +27,9 @@ def main():
 
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--save_path', type=str, default='./saves')
-    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
+    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
     parser.add_argument('--conf_thres', type=float, default=0.1)
-    parser.add_argument('--start_epoch', type=int, default=1)        # to resume
+    parser.add_argument('--start_epoch', type=int, default=0)        # to resume
     parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
     # ubuntu : '/home/cvmlserver3/Sungmin/data/VOC_ROOT'
     parser.add_argument('--os_type', type=str, default='window',
@@ -46,6 +47,8 @@ def main():
     # 4. data set
     train_set = VOC_Dataset(root=opts.data_root, split='TRAIN')
     test_set = VOC_Dataset(root=opts.data_root, split='TEST')
+    train_set = COCO_Dataset(set_name='train2017', split='TRAIN')
+    test_set = COCO_Dataset(set_name='val2017', split='TEST')
 
     # 5. data loader
     train_loader = torch.utils.data.DataLoader(train_set,
@@ -63,7 +66,7 @@ def main():
                                               pin_memory=True)
 
     # 6. network
-    model = SSD(VGG(pretrained=True), n_classes=21, loss_type='multi').to(device)
+    model = SSD(VGG(pretrained=True), n_classes=81, loss_type='multi').to(device)
     priors_cxcy = create_anchor_boxes()
 
     # 7. loss

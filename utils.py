@@ -122,76 +122,76 @@ def nms(boxes, scores, iou_threshold=0.5, top_k=200):
 
 
 def detect_objects(priors_cxcy, predicted_locs, predicted_scores, min_score, max_overlap, top_k, n_classes=21):
+    """
+    batch 1 에 대한 boxes 와 labels 와 scores 를 찾는 함수
+    :param priors_cxcy: [8732, 4]
+    :param predicted_locs: [1, 8732, 4]
+    :param predicted_scores: [1, 8732, 21]
+    :return:
+    after nms, remnant object is num_objects <= 200
+    image_boxes: [num_objects, 4]
+    image_labels:[num_objects]
+    image_scores:[num_objects]
+    """
 
     batch_size = predicted_locs.size(0)
     n_priors = priors_cxcy.size(0)
     predicted_scores = F.softmax(predicted_scores, dim=2)  # (N, 8732, n_classes)
 
-    # Lists to store final predicted boxes, labels, and scores for all images
-    batch_images_boxes = list()
-    batch_images_labels = list()
-    batch_images_scores = list()
-
     assert n_priors == predicted_locs.size(1) == predicted_scores.size(1)
 
-    for b in range(batch_size):
-        # Decode object coordinates from the form we regressed predicted boxes to
-        decoded_locs = cxcy_to_xy(
-            gcxgcy_to_cxcy(predicted_locs[b], priors_cxcy))  # (8732, 4), these are fractional pt. coordinates
+    # Decode object coordinates from the form we regressed predicted boxes to
+    decoded_locs = cxcy_to_xy(
+        gcxgcy_to_cxcy(predicted_locs[0], priors_cxcy))  # (8732, 4), these are fractional pt. coordinates
 
-        # Lists to store boxes and scores for this image
-        image_boxes = list()
-        image_labels = list()
-        image_scores = list()
+    # Lists to store boxes and scores for this image
+    image_boxes = list()
+    image_labels = list()
+    image_scores = list()
 
-        # Check for each class
-        for c in range(1, n_classes):
-            # Keep only predicted boxes and scores where scores for this class are above the minimum score
-            class_scores = predicted_scores[b][:, c]  # (8732)
-            score_above_min_score = class_scores > min_score  # torch.uint8 (byte) tensor, for indexing
-            n_above_min_score = score_above_min_score.sum().item()
-            if n_above_min_score == 0:
-                continue
-            class_scores = class_scores[score_above_min_score]  # (n_qualified), n_min_score <= 8732
-            class_decoded_locs = decoded_locs[score_above_min_score]  # (n_qualified, 4)
+    # Check for each class
+    for c in range(1, n_classes):
+        # Keep only predicted boxes and scores where scores for this class are above the minimum score
+        class_scores = predicted_scores[0][:, c]  # (8732)
+        score_above_min_score = class_scores > min_score  # torch.uint8 (byte) tensor, for indexing
+        n_above_min_score = score_above_min_score.sum().item()
+        if n_above_min_score == 0:
+            continue
+        class_scores = class_scores[score_above_min_score]  # (n_qualified), n_min_score <= 8732
+        class_decoded_locs = decoded_locs[score_above_min_score]  # (n_qualified, 4)
 
-            sorted_scores, idx_scores = class_scores.sort(descending=True)
-            sorted_boxes = class_decoded_locs[idx_scores]
-            sorted_boxes = sorted_boxes.clamp(0, 1)  # 0 ~ 1 로 scaling 해줌 --> 조금 오르려나? 78.30 --> 78.45 로 오름!
+        sorted_scores, idx_scores = class_scores.sort(descending=True)
+        sorted_boxes = class_decoded_locs[idx_scores]
+        sorted_boxes = sorted_boxes.clamp(0, 1)  # 0 ~ 1 로 scaling 해줌 --> 조금 오르려나? 78.30 --> 78.45 로 오름!
 
-            num_boxes = len(sorted_boxes)
-            keep_idx = torchvision_nms(boxes=sorted_boxes, scores=sorted_scores, iou_threshold=max_overlap)
-            keep_ = torch.zeros(num_boxes, dtype=torch.bool)
-            keep_[keep_idx] = 1  # int64 to bool
-            keep = keep_
+        num_boxes = len(sorted_boxes)
+        keep_idx = torchvision_nms(boxes=sorted_boxes, scores=sorted_scores, iou_threshold=max_overlap)
+        keep_ = torch.zeros(num_boxes, dtype=torch.bool)
+        keep_[keep_idx] = 1  # int64 to bool
+        keep = keep_
 
-            # Store only unsuppressed boxes for this class
-            image_boxes.append(sorted_boxes[keep])
-            image_labels.append(torch.LongTensor((keep).sum().item() * [c]).to(device))
-            image_scores.append(sorted_scores[keep])
+        # Store only unsuppressed boxes for this class
+        image_boxes.append(sorted_boxes[keep])
+        image_labels.append(torch.LongTensor((keep).sum().item() * [c]).to(device))
+        image_scores.append(sorted_scores[keep])
 
-        # If no object in any class is found, store a placeholder for 'background'
-        if len(image_boxes) == 0:
-            image_boxes.append(torch.FloatTensor([[0., 0., 1., 1.]]).to(device))
-            image_labels.append(torch.LongTensor([0]).to(device))
-            image_scores.append(torch.FloatTensor([0.]).to(device))
+    # If no object in any class is found, store a placeholder for 'background'
+    if len(image_boxes) == 0:
+        image_boxes.append(torch.FloatTensor([[0., 0., 1., 1.]]).to(device))
+        image_labels.append(torch.LongTensor([0]).to(device))
+        image_scores.append(torch.FloatTensor([0.]).to(device))
 
-        # Concatenate into single tensors
-        image_boxes = torch.cat(image_boxes, dim=0)  # (n_objects, 4)
-        image_labels = torch.cat(image_labels, dim=0)  # (n_objects)
-        image_scores = torch.cat(image_scores, dim=0)  # (n_objects)
-        n_objects = image_scores.size(0)
+    # Concatenate into single tensors
+    image_boxes = torch.cat(image_boxes, dim=0)  # (n_objects, 4)
+    image_labels = torch.cat(image_labels, dim=0)  # (n_objects)
+    image_scores = torch.cat(image_scores, dim=0)  # (n_objects)
+    n_objects = image_scores.size(0)
 
-        # Keep only the top k objects --> 다구하고 200 개를 자르는 것은 느리지 않은가?
-        if n_objects > top_k:
-            image_scores, sort_ind = image_scores.sort(dim=0, descending=True)
-            image_scores = image_scores[:top_k]  # (top_k)
-            image_boxes = image_boxes[sort_ind][:top_k]  # (top_k, 4)
-            image_labels = image_labels[sort_ind][:top_k]  # (top_k)
+    # Keep only the top k objects --> 다구하고 200 개를 자르는 것은 느리지 않은가?
+    if n_objects > top_k:
+        image_scores, sort_ind = image_scores.sort(dim=0, descending=True)
+        image_scores = image_scores[:top_k]  # (top_k)
+        image_boxes = image_boxes[sort_ind][:top_k]  # (top_k, 4)
+        image_labels = image_labels[sort_ind][:top_k]  # (top_k)
 
-        # Append to lists that store predicted boxes and scores for all images
-        batch_images_boxes.append(image_boxes)
-        batch_images_labels.append(image_labels)
-        batch_images_scores.append(image_scores)
-
-    return batch_images_boxes, batch_images_labels, batch_images_scores  # lists of length batch_size
+    return image_boxes, image_labels, image_scores  # lists of length batch_size
