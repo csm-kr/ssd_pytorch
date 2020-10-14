@@ -93,6 +93,9 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
 
                     for pred_box, pred_label, pred_score in zip(pred_boxes, pred_labels,
                                                                 pred_scores):  # pred object 의 갯수
+                        if int(pred_label) == 0:
+                            continue
+
                         coco_result = {
                             'image_id': image_id,
                             'category_id': test_loader.dataset.label_to_coco_label(int(pred_label - 1)),

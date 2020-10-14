@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--save_path', type=str, default='./saves')
     parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
     parser.add_argument('--conf_thres', type=float, default=0.1)
-    parser.add_argument('--start_epoch', type=int, default=0)        # to resume
+    parser.add_argument('--start_epoch', type=int, default=1)        # to resume
     parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
     # ubuntu : '/home/cvmlserver3/Sungmin/data/VOC_ROOT'
     parser.add_argument('--os_type', type=str, default='window',
