@@ -7,7 +7,7 @@ import os
 import glob
 import cv2
 import time
-from utils import detect_objects, rev_label_map, voc_color_array
+from utils import detect_objects, voc_rev_label_map, voc_color_array, coco_rev_label_map, coco_color_array
 from config import device
 import argparse
 
@@ -44,7 +44,7 @@ def save_det_txt_for_mAP(file_name, boxes, labels, scores):
     f.close()
 
 
-def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None):
+def demo(original_image, model, min_score, max_overlap, top_k, opts, priors_cxcy=None):
     """
 
     :param original_image:
@@ -92,7 +92,12 @@ def demo(original_image, model, min_score, max_overlap, top_k, priors_cxcy=None)
     det_boxes = det_boxes * original_dims
     # 소수를 실제 bbox 좌표로 변경하는 부분
     # Decode class integer labels
-    det_labels = [rev_label_map[l] for l in det_labels.to('cpu').tolist()]
+
+    # det_labels = [voc_rev_label_map[l] for l in det_labels.to('cpu').tolist()]
+    if opts.data_type == 'voc':
+        det_labels = [voc_rev_label_map[l] for l in det_labels.to('cpu').tolist()]
+    elif opts.data_type == 'coco':
+        det_labels = [coco_rev_label_map[l] for l in det_labels.to('cpu').tolist()]
 
     return det_boxes, det_labels, det_scores, detection_time
 
@@ -101,19 +106,24 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_path', type=str, default='./saves')
-    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
+    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
     parser.add_argument('--conf_thres', type=float, default=0.35)
     # parser.add_argument('--img_path', type=str, default='D:\Data\VOC_ROOT\TEST\VOC2007\JPEGImages')
     parser.add_argument('--img_path', type=str, default='D:\Data\coco\images\\val2017')
-    parser.add_argument('--visualization', type=bool, default=True)
+    parser.add_argument('--visualization', type=bool, default=False)
+    parser.add_argument('--data_type', type=str, default='coco', help='choose voc or coco')
     demo_opts = parser.parse_args()
     print(demo_opts)
 
     visualization = demo_opts.visualization
-    model = SSD(VGG(pretrained=True))
+    if demo_opts.data_type == 'voc':
+        model = SSD(VGG(pretrained=True), n_classes=21)
+    elif demo_opts.data_type == 'coco':
+        model = SSD(VGG(pretrained=True), n_classes=81)
+
 
     # use custom training pth file
-    epoch = 2
+    epoch = 17
     checkpoint = torch.load(os.path.join(demo_opts.save_path, demo_opts.save_file_name) + '.{}.pth.tar'.format(epoch))
     model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -151,7 +161,9 @@ if __name__ == '__main__':
             img = Image.open(img_path, mode='r').convert('RGB')
             pred_boxes, pred_labels, pred_scores, det_time = demo(img, model=model, min_score=demo_opts.conf_thres,
                                                                   max_overlap=0.45, top_k=200,
-                                                                  priors_cxcy=priors_cxcy)
+                                                                  opts=demo_opts,
+                                                                  priors_cxcy=priors_cxcy,
+                                                                  )
 
             # FIXME save for mAP??? --> ./pred
             name = os.path.basename(img_path).split('.')[0]  # .replace('.jpg', '.txt')
@@ -164,7 +176,13 @@ if __name__ == '__main__':
 
             if visualization:
 
-                voc_labels_array = list(rev_label_map.values())
+                if demo_opts.data_type == 'voc':
+                    labels_array = list(voc_rev_label_map.values())
+                    color_array = voc_color_array
+                elif demo_opts.data_type == 'coco':
+                    labels_array = list(coco_rev_label_map.values())
+                    color_array = coco_color_array
+
                 img = cv2.imread(img_path)
                 for i in range(len(pred_boxes)):
 
@@ -176,7 +194,8 @@ if __name__ == '__main__':
                     cv2.rectangle(img,
                                   pt1=(x_min, y_min),
                                   pt2=(x_max, y_max),
-                                  color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
+                                  # color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
+                                  color=color_array[labels_array.index(pred_labels[i])].tolist(),
                                   thickness=2)
 
                     text_size = cv2.getTextSize(text=pred_labels[i],
@@ -188,7 +207,8 @@ if __name__ == '__main__':
                     cv2.rectangle(img,
                                   pt1=(x_min, y_min),
                                   pt2=(x_min + text_size[0], y_min + text_size[1] + 3),
-                                  color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
+                                  # color=voc_color_array[voc_labels_array.index(pred_labels[i])].tolist(),
+                                  color=color_array[labels_array.index(pred_labels[i])].tolist(),
                                   thickness=-1)
 
                     # text

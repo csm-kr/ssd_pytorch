@@ -177,14 +177,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_path', type=str, default='./saves')
     parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
-    parser.add_argument('--conf_thres', type=float, default=0.01)
+    parser.add_argument('--conf_thres', type=float, default=0.05)
     parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
     # "/home/cvmlserver3/Sungmin/data/VOC_ROOT"
     test_opts = parser.parse_args()
     print(test_opts)
 
     # 1. epoch
-    epoch = 0
+    epoch = 18
 
     # 2. device
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

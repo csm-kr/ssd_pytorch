@@ -92,7 +92,7 @@ class COCO_Dataset(Dataset):
         if labels.nelement() == 0:  # no labeled img exists.
             visualize = True
         # data augmentation
-        image, boxes, labels = transform_COCO(image, boxes, labels, self.split)
+        image, boxes, labels = transform_COCO(image, boxes, labels, self.split)  # remove diff
 
         if visualize:
             # ----------------- visualization -----------------

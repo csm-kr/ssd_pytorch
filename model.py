@@ -110,7 +110,7 @@ class SSD(nn.Module):
                                     )
 
         self.rescale_factors = nn.Parameter(torch.FloatTensor(1, 512, 1, 1))  # there are 512 channels in conv4_3_feats
-        nn.init.constant_(self.rescale_factors, 20)
+        nn.init.constant_(self.rescale_factors, int(n_classes - 1))
 
         self.loc = nn.ModuleList([nn.Conv2d(in_channels=512, out_channels=4 * 4, kernel_size=3, padding=1),
                                   nn.Conv2d(in_channels=1024, out_channels=6 * 4, kernel_size=3, padding=1),
