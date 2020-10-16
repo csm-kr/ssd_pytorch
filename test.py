@@ -69,7 +69,7 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
                                                                       predicted_scores,
                                                                       min_score=opts.conf_thres,
                                                                       max_overlap=0.45,
-                                                                      top_k=200)
+                                                                      top_k=100)
 
                 if is_coco:
                     # --- for COCO ---
@@ -152,10 +152,10 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
             coco_eval.evaluate()
             coco_eval.accumulate()
             coco_eval.summarize()
-            mAP = coco_eval.stats[0]  # 0: AP, 1: .5 AP, 2: .75 AP, 3
+            mAP = coco_eval.stats[1]  # 0: AP, 1: .5 AP, 2: .75 AP, 3
 
         else:
-            # --- for VOC --- (117~118)
+            # --- for VOC --- (158~160)
             test_root = os.path.join(opts.data_root, 'TEST', 'VOC2007', 'Annotations')
             mAP = voc_eval(test_root, det_img_name, det_additional, det_boxes, det_scores, det_labels)
 

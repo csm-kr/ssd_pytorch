@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--conf_thres', type=float, default=0.35)
     # parser.add_argument('--img_path', type=str, default='D:\Data\VOC_ROOT\TEST\VOC2007\JPEGImages')
     parser.add_argument('--img_path', type=str, default='D:\Data\coco\images\\val2017')
-    parser.add_argument('--visualization', type=bool, default=False)
+    parser.add_argument('--visualization', type=bool, default=True)
     parser.add_argument('--data_type', type=str, default='coco', help='choose voc or coco')
     demo_opts = parser.parse_args()
     print(demo_opts)
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
 
     # use custom training pth file
-    epoch = 17
+    epoch = 0
     checkpoint = torch.load(os.path.join(demo_opts.save_path, demo_opts.save_file_name) + '.{}.pth.tar'.format(epoch))
     model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
             # for each a image, outputs are boxes and labels.
             img = Image.open(img_path, mode='r').convert('RGB')
             pred_boxes, pred_labels, pred_scores, det_time = demo(img, model=model, min_score=demo_opts.conf_thres,
-                                                                  max_overlap=0.45, top_k=200,
+                                                                  max_overlap=0.45, top_k=100,
                                                                   opts=demo_opts,
                                                                   priors_cxcy=priors_cxcy,
                                                                   )
