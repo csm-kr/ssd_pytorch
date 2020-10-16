@@ -7,6 +7,7 @@ from pycocotools.cocoeval import COCOeval
 from config import device
 import tempfile
 import json
+from dataset.coco_dataset import COCO_Dataset
 
 
 def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=None, eval=False):
@@ -30,6 +31,7 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
     # for VOC evaluation
     # Lists to store detected and true boxes, labels, scores of whole test data
     # test_dataset 에 대하여 다 넣는 list
+    det_img_name = list()
     det_additional = list()
     det_boxes = list()
     det_labels = list()
@@ -108,9 +110,14 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
                 else:
 
                     # --- for VOC --- (68 ~ 71)
-                    additional_info = datas[4]
-                    additional_info = additional_info[0]                # img_name, img_width, img_height --> diff name
-                    det_additional.append(additional_info)                           # 4952 len list # [3] - name, w, h
+                    img_names = datas[4]
+                    img_names = img_names[0]                                        # img_name,
+                    det_img_name.append(img_names)                                  # 4952 len list # [1] - img_ name
+
+                    additional_info = datas[5]
+                    additional_info = additional_info[0]                             # img_width, img_height
+                    det_additional.append(additional_info)                           # 4952 len list # [2] -  w, h
+
                     det_boxes.append(pred_boxes.cpu())                               # 4952 len list # [obj, 4]
                     det_labels.append(pred_labels.cpu())                             # 4952 len list # [obj]
                     det_scores.append(pred_scores.cpu())                             # 4952 len list # [obj]
@@ -150,7 +157,7 @@ def test(epoch, device, vis, test_loader, model, criterion, opts, priors_cxcy=No
         else:
             # --- for VOC --- (117~118)
             test_root = os.path.join(opts.data_root, 'TEST', 'VOC2007', 'Annotations')
-            mAP = voc_eval(test_root, det_additional, det_boxes, det_scores, det_labels)
+            mAP = voc_eval(test_root, det_img_name, det_additional, det_boxes, det_scores, det_labels)
 
         if vis is not None:
             # loss plot
@@ -176,15 +183,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_path', type=str, default='./saves')
-    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
+    parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16')
     parser.add_argument('--conf_thres', type=float, default=0.05)
     parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
+    parser.add_argument('--data_type', type=str, default='voc', help='choose voc or coco')
     # "/home/cvmlserver3/Sungmin/data/VOC_ROOT"
     test_opts = parser.parse_args()
     print(test_opts)
 
     # 1. epoch
-    epoch = 18
+    epoch = 1
 
     # 2. device
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -193,9 +201,13 @@ if __name__ == "__main__":
     vis = None
 
     # 4. data set
-    # test_set = VOC_Dataset(root=test_opts.data_root, split='TEST')
-    from dataset.coco_dataset import COCO_Dataset
-    test_set = COCO_Dataset(root_dir='D:\Data\coco', set_name='val2017', split='TEST')
+    if test_opts.data_type == 'voc':
+        test_set = VOC_Dataset(root=test_opts.data_root, split='TEST')
+        n_classes = 21
+
+    elif test_opts.data_type == 'coco':
+        test_set = COCO_Dataset(root_dir='D:\Data\coco', set_name='val2017', split='TEST')
+        n_classes = 81
 
     # 5. data loader
     test_loader = torch.utils.data.DataLoader(test_set,
@@ -204,7 +216,7 @@ if __name__ == "__main__":
                                               shuffle=False,
                                               num_workers=4)
     # 6. network
-    model = SSD(VGG(pretrained=True), n_classes=81).to(device)
+    model = SSD(VGG(pretrained=True), n_classes=n_classes).to(device)
     priors_cxcy = create_anchor_boxes()  # cx, cy, w, h - [8732, 4]
 
     # 7. loss

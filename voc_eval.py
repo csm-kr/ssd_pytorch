@@ -63,23 +63,32 @@ def save_gt(xml_file, cache_dir, classes, gt_counter_per_class):
     return classes, gt_counter_per_class
 
 
-def save_pred(additional, bboxes, scores, classes, class_name, gt_classes, cache_dir):
+def save_pred(img_names, additional, bboxes, scores, classes, class_name, gt_classes, cache_dir):
     """
 
-    :param add: img_name, img_width, img_height
+    :param img_names: list of 2nd dimensional tensor [[1, num_name_strings]]
+    :param add:
     :param box:
-    :param score:
-    :param class_:
+    :param scores:
+    :param classes:
+    :param class_name:
+    :param gt_classes:
+    :param cache_dir:
     :return:
     """
+
     preds_dicts = []
-    for (add, obj_boxes, obj_scores, obj_class) in zip(additional, bboxes, scores, classes):
-        img_name = add[0]
+    for (img_name_ascii, add, obj_boxes, obj_scores, obj_class) in zip(img_names, additional, bboxes, scores, classes):
+
+        img_name_ascii = img_name_ascii[0]
+        img_name_ascii = img_name_ascii.numpy()
+        img_name_from_ascii = [chr(c) for c in img_name_ascii]
+
         img_width = add[1]
         img_height = add[2]
 
-        # 1. 이름을 string 으로 바꾸어라
-        img_name = str(int(img_name.item())).zfill(6)
+        # 1. convert from ascii int name to string
+        img_name = ''.join(img_name_from_ascii)
 
         # 2. width, height 로 bbox 를 변형하라
         origin_wh = torch.FloatTensor([img_width, img_height, img_width, img_height]).unsqueeze(0)  # [1  , 4]
@@ -219,12 +228,19 @@ def cal_mAP(cache_dir, gt_classes, gt_counter_per_class, MINOVERLAP=0.5):
 
 
 def voc_eval(test_xml_path="D:\Data\VOC_ROOT\TEST\VOC2007\Annotations",
+             img_names=None,
              additional=None, bboxes=None, scores=None, classes=None):
     """
 
     :param test_xml_path: annotation path
+    :param img_names: annotation path
+    :param additional: annotation path
+    :param bboxes: annotation path
+    :param scores: annotation path
+    :param classes: annotation path
     :return:
     """
+
     print("start..evaluation")
     tic = time.time()
 
@@ -251,7 +267,7 @@ def voc_eval(test_xml_path="D:\Data\VOC_ROOT\TEST\VOC2007\Annotations",
 
     # 3. save_pred
     for class_index, class_name in enumerate(gt_classes):
-        save_pred(additional, bboxes, scores, classes, class_name, gt_classes, cache_dir)
+        save_pred(img_names, additional, bboxes, scores, classes, class_name, gt_classes, cache_dir)
 
     # 4. calculate mAP
     map = cal_mAP(cache_dir, gt_classes, gt_counter_per_class, 0.5)
