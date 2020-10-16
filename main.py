@@ -75,7 +75,7 @@ def main():
     priors_cxcy = create_anchor_boxes()
 
     # 7. loss
-    criterion = MultiBoxLoss(priors_cxcy=priors_cxcy)
+    criterion = MultiBoxLoss(priors_cxcy=priors_cxcy, alpha=10.)
 
     # 8. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),

@@ -5,7 +5,7 @@ from config import device
 
 
 class MultiBoxLoss(nn.Module):
-    def __init__(self, priors_cxcy, threshold=0.5, neg_pos_ratio=3, alpha=1., ):
+    def __init__(self, priors_cxcy, threshold=0.5, neg_pos_ratio=3, alpha=10., ):
         super(MultiBoxLoss, self).__init__()
 
         self.priors_cxcy = priors_cxcy
@@ -140,7 +140,8 @@ class MultiBoxLoss(nn.Module):
             conf_loss = (a_t * torch.pow(1 - p_t, gamma) * ce).sum() / n_positives.sum()  # focal loss
 
         # TOTAL LOSS
-        total_loss = (conf_loss + self.alpha * loc_loss)
+        loc_loss = self.alpha * loc_loss
+        total_loss = (conf_loss + loc_loss)
         return total_loss, (loc_loss, conf_loss)
 
 

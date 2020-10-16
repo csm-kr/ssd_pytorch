@@ -22,5 +22,8 @@ mAP : 77.45 %
 
 1. l1 loss + hard negative cls loss and 200 epoch 1e-3 
 
+2. rescaling initialization convert to xavier init
+
 ### Start Guide
+
 

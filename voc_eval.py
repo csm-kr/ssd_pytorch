@@ -84,8 +84,8 @@ def save_pred(img_names, additional, bboxes, scores, classes, class_name, gt_cla
         img_name_ascii = img_name_ascii.numpy()
         img_name_from_ascii = [chr(c) for c in img_name_ascii]
 
-        img_width = add[1]
-        img_height = add[2]
+        img_width = add[0]
+        img_height = add[1]
 
         # 1. convert from ascii int name to string
         img_name = ''.join(img_name_from_ascii)
