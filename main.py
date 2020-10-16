@@ -29,9 +29,10 @@ def main():
     parser.add_argument('--save_path', type=str, default='./saves')
     parser.add_argument('--save_file_name', type=str, default='ssd_vgg_16_coco')
     parser.add_argument('--conf_thres', type=float, default=0.05)
-    parser.add_argument('--start_epoch', type=int, default=22)        # to resume
+    parser.add_argument('--start_epoch', type=int, default=0)        # to resume
     parser.add_argument('--data_root', type=str, default='D:\Data\VOC_ROOT')
     # ubuntu : '/home/cvmlserver3/Sungmin/data/VOC_ROOT'
+    parser.add_argument('--data_type', type=str, default='coco', help='choose voc or coco')
     parser.add_argument('--os_type', type=str, default='window',
                         help='choose the your os type between window and ubuntu')
 
@@ -45,28 +46,32 @@ def main():
     vis = visdom.Visdom()
 
     # 4. data set
-    train_set = VOC_Dataset(root=opts.data_root, split='TRAIN')
-    test_set = VOC_Dataset(root=opts.data_root, split='TEST')
-    train_set = COCO_Dataset(set_name='train2017', split='TRAIN')
-    test_set = COCO_Dataset(set_name='val2017', split='TEST')
+    if opts.data_type == 'voc':
+        train_set = VOC_Dataset(root=opts.data_root, split='TRAIN')
+        test_set = VOC_Dataset(root=opts.data_root, split='TEST')
+        n_classes = 21
+    elif opts.data_type == 'coco':
+        train_set = COCO_Dataset(set_name='train2017', split='TRAIN')
+        test_set = COCO_Dataset(set_name='val2017', split='TEST')
+        n_classes = 81
 
     # 5. data loader
     train_loader = torch.utils.data.DataLoader(train_set,
                                                batch_size=opts.batch_size,
                                                collate_fn=train_set.collate_fn,
                                                shuffle=True,
-                                               num_workers=2,
+                                               num_workers=4,
                                                pin_memory=True)
 
     test_loader = torch.utils.data.DataLoader(test_set,
                                               batch_size=1,
                                               collate_fn=test_set.collate_fn,
                                               shuffle=False,
-                                              num_workers=0,
+                                              num_workers=2,
                                               pin_memory=True)
 
     # 6. network
-    model = SSD(VGG(pretrained=True), n_classes=81, loss_type='multi').to(device)
+    model = SSD(VGG(pretrained=True), n_classes=n_classes, loss_type='multi').to(device)
     priors_cxcy = create_anchor_boxes()
 
     # 7. loss

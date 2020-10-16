@@ -35,17 +35,24 @@ class VOC_Dataset(data.Dataset):
     def __getitem__(self, idx):
 
         visualize = False
-        # --------------------------------------------- img read ------------------------------------------------------
+
+        # load img
         image = Image.open(self.img_list[idx]).convert('RGB')
+        # load labels
         boxes, labels, is_difficult = self.parse_voc(self.anno_list[idx])
+
+        # load img name for string
         img_name = os.path.basename(self.anno_list[idx]).split('.')[0]
-        img_name = float(img_name)
+        img_name_to_ascii = [ord(c) for c in img_name]
+
+        # load img width and height
         img_width, img_height = float(image.size[0]), float(image.size[1])
 
         boxes = torch.FloatTensor(boxes)
         labels = torch.LongTensor(labels) + 1          # FIXME
         difficulties = torch.ByteTensor(is_difficult)  # (n_objects)
-        additional_info = torch.FloatTensor([img_name, img_width, img_height])
+        img_name = torch.FloatTensor([img_name_to_ascii])
+        additional_info = torch.FloatTensor([img_width, img_height])
 
         # image, boxes, labels = transform(image, boxes, labels)  # transform is resize and normalization
         image, boxes, labels, difficulties = transform_(image, boxes, labels, difficulties, self.split)
@@ -81,7 +88,7 @@ class VOC_Dataset(data.Dataset):
 
             plt.show()
         if self.split == "TEST":
-            return image, boxes, labels, difficulties, additional_info
+            return image, boxes, labels, difficulties, img_name, additional_info
 
         return image, boxes, labels, difficulties
 
@@ -134,6 +141,7 @@ class VOC_Dataset(data.Dataset):
         images = list()
         boxes = list()
         labels = list()
+        img_name = list()
         difficulties = list()
         if self.split == "TEST":
             additional_info = list()
@@ -144,11 +152,13 @@ class VOC_Dataset(data.Dataset):
             labels.append(b[2])
             difficulties.append(b[3])
             if self.split == "TEST":
-                additional_info.append(b[4])
+                img_name.append(b[4])
+                additional_info.append(b[5])
+
 
         images = torch.stack(images, dim=0)
         if self.split == "TEST":
-            return images, boxes, labels, difficulties, additional_info
+            return images, boxes, labels, difficulties, img_name, additional_info
         return images, boxes, labels, difficulties
 
 
