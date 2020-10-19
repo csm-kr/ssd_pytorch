@@ -39,7 +39,13 @@ class COCO_Dataset(Dataset):
         super().__init__()
         self.root_dir = root_dir
         self.set_name = set_name
-        self.coco = COCO(os.path.join(self.root_dir, 'annotations', 'instances_' + self.set_name + '.json'))
+
+        # for trainval35k
+        if set_name == 'minival2014' or 'valminusminival2014':
+            self.set_name = 'val2014'
+            self.coco = COCO(os.path.join(self.root_dir, 'annotations', 'instances_' + set_name + '.json'))
+        else:
+            self.coco = COCO(os.path.join(self.root_dir, 'annotations', 'instances_' + self.set_name + '.json'))
 
         whole_image_ids = self.coco.getImgIds()  # original length of train2017 is 118287
         self.image_ids = []
