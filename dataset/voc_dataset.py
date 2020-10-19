@@ -141,10 +141,9 @@ class VOC_Dataset(data.Dataset):
         images = list()
         boxes = list()
         labels = list()
-        img_name = list()
         difficulties = list()
-        if self.split == "TEST":
-            additional_info = list()
+        img_name = list()
+        additional_info = list()
 
         for b in batch:
             images.append(b[0])
@@ -154,7 +153,6 @@ class VOC_Dataset(data.Dataset):
             if self.split == "TEST":
                 img_name.append(b[4])
                 additional_info.append(b[5])
-
 
         images = torch.stack(images, dim=0)
         if self.split == "TEST":
