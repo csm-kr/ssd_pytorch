@@ -1,109 +1,174 @@
 import os
-import torch
-import numpy as np
+import sys
 
-import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader
-from pycocotools.coco import COCO
-
-from dataset.trasform import transform_COCO
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from PIL import Image
-
+from pycocotools.coco import COCO
+from torch.utils.data import DataLoader, Dataset
+import numpy as np
+import torch
 import matplotlib
-matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+import platform
+import os
+import wget
+import glob
+import zipfile
+from utils import bar_custom, coco_color_array
 
+
+def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
+    # for coco 2017
+    coco_2017_train_url = 'http://images.cocodataset.org/zips/train2017.zip'
+    coco_2017_val_url = 'http://images.cocodataset.org/zips/val2017.zip'
+    coco_2017_test_url = 'http://images.cocodataset.org/zips/test2017.zip'
+    coco_2017_trainval_anno_url = 'http://images.cocodataset.org/annotations/annotations_trainval2017.zip'
+
+    os.makedirs(root_dir, exist_ok=True)
+
+    img_dir = os.path.join(root_dir, 'images')
+    anno_dir = os.path.join(root_dir, 'annotations')
+
+    os.makedirs(img_dir, exist_ok=True)
+    os.makedirs(anno_dir, exist_ok=True)
+
+    """Download the VOC data if it doesn't exit in processed_folder already."""
+
+    # if (os.path.exists(os.path.join(img_dir, 'train2017')) and
+    #         os.path.exists(os.path.join(img_dir, 'val2017')) and
+    #         os.path.exists(os.path.join(img_dir, 'test2017'))):
+    #
+    if (os.path.exists(os.path.join(img_dir, 'train2017')) and
+            os.path.exists(os.path.join(img_dir, 'val2017'))):
+
+        print("Already exist!")
+        return
+
+    print("Download...")
+
+    # image download
+    wget.download(url=coco_2017_train_url, out=img_dir, bar=bar_custom)
+    print('')
+    wget.download(url=coco_2017_val_url, out=img_dir, bar=bar_custom)
+    print('')
+    # wget.download(url=coco_2017_test_url, out=img_dir, bar=bar_custom)
+    # print('')
+
+    # annotation download
+    wget.download(coco_2017_trainval_anno_url, out=root_dir, bar=bar_custom)
+    print('')
+
+    print("Extract...")
+
+    # image extract
+    with zipfile.ZipFile(os.path.join(img_dir, 'train2017.zip')) as unzip:
+        unzip.extractall(os.path.join(img_dir))
+    with zipfile.ZipFile(os.path.join(img_dir, 'val2017.zip')) as unzip:
+        unzip.extractall(os.path.join(img_dir))
+    # with zipfile.ZipFile(os.path.join(img_dir, 'test2017.zip')) as unzip:
+    #     unzip.extractall(os.path.join(img_dir))
+
+    # annotation extract
+    with zipfile.ZipFile(os.path.join(root_dir, 'annotations_trainval2017.zip')) as unzip:
+        unzip.extractall(os.path.join(root_dir))
+
+    # remove zips
+    if remove_compressed_file:
+        root_zip_list = glob.glob(os.path.join(root_dir, '*.zip'))  # in root_dir remove *.zip
+        for anno_zip in root_zip_list:
+            os.remove(anno_zip)
+
+        img_zip_list = glob.glob(os.path.join(img_dir, '*.zip'))  # in img_dir remove *.zip
+        for img_zip in img_zip_list:
+            os.remove(img_zip)
+        print("Remove *.zips")
+
+    print("Done!")
+
+
+# COCO_Dataset
 class COCO_Dataset(Dataset):
-    """Coco dataset."""
-
-    def __init__(self, root_dir='D:\Data\coco', set_name='val2017', split='TRAIN'):
-
-        """
-        Args:
-            root_dir (string): COCO directory.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        '''
-        data path is as follos:
-        root -- images      -- train2017
-             |              |- val2017
-             |              (|- test2017)
-             | 
-             -- anotations  -- instances_train2017.json
-                            |- instances_val2017.json  * minival 
-                            (|- image_info_test2017.json)
-                            (|- image_info_test-dev2017.json)
-        '''
+    def __init__(self,
+                 root='D:\Data\coco',
+                 split='train',
+                 download=True,
+                 transform=None,
+                 visualization=False):
         super().__init__()
-        self.root_dir = root_dir
-        self.set_name = set_name
 
-        # for trainval35k
-        if set_name == 'minival2014' or 'valminusminival2014':
-            self.set_name = 'val2014'
-            self.coco = COCO(os.path.join(self.root_dir, 'annotations', 'instances_' + set_name + '.json'))
-        else:
-            self.coco = COCO(os.path.join(self.root_dir, 'annotations', 'instances_' + self.set_name + '.json'))
+        if platform.system() == 'Windows':
+            matplotlib.use('TkAgg')  # for window
 
-        whole_image_ids = self.coco.getImgIds()  # original length of train2017 is 118287
-        self.image_ids = []
-        # to remove not annotated image idx
-        self.no_anno_list = []
-        for idx in whole_image_ids:
-            annotations_ids = self.coco.getAnnIds(imgIds=idx, iscrowd=False)
-            if len(annotations_ids) == 0:
-                self.no_anno_list.append(idx)
-            else:
-                self.image_ids.append(idx)
-        # after removing not annotated image, the length of train2017 is 117359
-        # in https://github.com/cocodataset/cocoapi/issues/76 1021 not annotated images exist
-        # so 118287 - 117266 = 1021
+        # -------------------------- set root --------------------------
+        self.root = root
 
-        self.load_classes()
+        # -------------------------- set split --------------------------
+        assert split in ['train', 'val', 'test']
         self.split = split
+        self.set_name = split + '2017'
 
-    def load_classes(self):
-        # load class names (name -> label)
-        categories = self.coco.loadCats(self.coco.getCatIds())
-        categories.sort(key=lambda x: x['id'])
+        # -------------------------- download --------------------------
+        self.download = download
+        if self.download:
+            download_coco(root_dir=root)
 
-        self.classes = {}
-        self.coco_labels = {}
-        self.coco_labels_inverse = {}
-        for c in categories:
-            self.coco_labels[len(self.classes)] = c['id']
-            self.coco_labels_inverse[c['id']] = len(self.classes)
-            self.classes[c['name']] = len(self.classes)
+        # -------------------------- transform --------------------------
+        self.transform = transform
 
-        # also load the reverse (label -> name)
-        self.labels = {}
-        for key, value in self.classes.items():
-            self.labels[value] = key
+        # -------------------------- visualization --------------------------
+        self.visualization = visualization
 
-    def __len__(self):
-        return len(self.image_ids)
+        self.img_path = glob.glob(os.path.join(self.root, 'images', self.set_name, '*.jpg'))
+        self.coco = COCO(os.path.join(self.root, 'annotations', 'instances_' + self.set_name + '.json'))
 
-    def __getitem__(self, idx):
+        self.img_id = list(self.coco.imgToAnns.keys())
+        # self.ids = self.coco.getImgIds()
 
-        visualize = False
+        self.coco_ids = sorted(self.coco.getCatIds())  # list of coco labels [1, ...11, 13, ... 90]  # 0 ~ 79 to 1 ~ 90
+        self.coco_ids_to_continuous_ids = {coco_id: i for i, coco_id in enumerate(self.coco_ids)}  # 1 ~ 90 to 0 ~ 79
+        # int to int
+        self.coco_ids_to_class_names = {category['id']: category['name'] for category in
+                                        self.coco.loadCats(self.coco_ids)}  # len 80
+        # int to string
+        # {1 : 'person', 2: 'bicycle', ...}
+        '''
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34,
+         35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+         64, 65, 67, 70, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 89, 90]
+        '''
 
-        image, (w, h) = self.load_image(idx)
-        annotation = self.load_annotations(idx)
+    def __getitem__(self, index):
 
-        boxes = torch.FloatTensor(annotation[:, :4])
-        labels = torch.LongTensor(annotation[:, 4]) + 1   # FIXME
+        # --------------------------- load data ---------------------------
+        # 1. image_id
+        img_id = self.img_id[index]
 
-        if labels.nelement() == 0:  # no labeled img exists.
-            visualize = True
-        # data augmentation
-        image, boxes, labels = transform_COCO(image, boxes, labels, self.split)  # remove diff
+        # 2. load image
+        img_coco = self.coco.loadImgs(ids=img_id)[0]
+        file_name = img_coco['file_name']
+        file_path = os.path.join(self.root, 'images', self.set_name, file_name)
 
-        if visualize:
+        # eg. 'D:\\Data\\coco\\images\\val2017\\000000289343.jpg'
+        image = Image.open(file_path).convert('RGB')
+
+        # 3. load anno
+        anno_ids = self.coco.getAnnIds(imgIds=img_id)  # img id 에 해당하는 anno id 를 가져온다.
+        anno = self.coco.loadAnns(ids=anno_ids)        # anno id 에 해당하는 annotation 을 가져온다.
+
+        det_anno = self.make_det_annos(anno)           # anno -> [x1, y1, x2, y2, c] numpy 배열로
+
+        boxes = torch.FloatTensor(det_anno[:, :4])     # numpy to Tensor
+        labels = torch.LongTensor(det_anno[:, 4])
+
+        # --------------------------- for transform ---------------------------
+        if self.transform is not None:
+            image, boxes, labels = self.transform(image, boxes, labels)
+        # print("boxes:", boxes)
+
+        if self.visualization:
             # ----------------- visualization -----------------
-            resized_img_size = 300
-
             mean = np.array([0.485, 0.456, 0.406])
             std = np.array([0.229, 0.224, 0.225])
 
@@ -115,49 +180,54 @@ class COCO_Dataset(Dataset):
 
             plt.figure('input')
             plt.imshow(img_vis)
+            print('num objects : {}'.format(len(boxes)))
 
             for i in range(len(boxes)):
-                print(boxes[i], labels[i], ':', self.labels[labels[i].item()])
-                plt.gca().add_patch(Rectangle((boxes[i][0] * resized_img_size, boxes[i][1] * resized_img_size),
-                                              boxes[i][2] * resized_img_size - boxes[i][0] * resized_img_size,
-                                              boxes[i][3] * resized_img_size - boxes[i][1] * resized_img_size,
-                                              linewidth=1, edgecolor='r', facecolor='none'))
 
-                plt.text(boxes[i][0] * resized_img_size - 5, boxes[i][1] * resized_img_size - 5,
-                         str(self.labels[labels[i].item()]),
-                         bbox=dict(boxstyle='round4', color='grey'))
+                new_h_scale = new_w_scale = 1
+                # box_normalization of DetResize
+                if self.transform.transforms[-2].box_normalization:
+                    new_h_scale, new_w_scale = image.size()[1:]
+
+                x1 = boxes[i][0] * new_w_scale
+                y1 = boxes[i][1] * new_h_scale
+                x2 = boxes[i][2] * new_w_scale
+                y2 = boxes[i][3] * new_h_scale
+
+                # print(boxes[i], ':', self.coco_ids_to_class_names[self.coco_ids[labels[i]]])
+
+                # class
+                plt.text(x=x1 - 5,
+                         y=y1 - 5,
+                         s=str(self.coco_ids_to_class_names[self.coco_ids[labels[i]]]),
+                         bbox=dict(boxstyle='round4',
+                                   facecolor=coco_color_array[labels[i]],
+                                   alpha=0.9))
+
+                # bounding box
+                plt.gca().add_patch(Rectangle(xy=(x1, y1),
+                                              width=x2 - x1,
+                                              height=y2 - y1,
+                                              linewidth=1,
+                                              edgecolor=coco_color_array[labels[i]],
+                                              facecolor='none'))
 
             plt.show()
 
         return image, boxes, labels
 
-    def load_image(self, image_index):
-        image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
-        path = os.path.join(self.root_dir, 'images', self.set_name, image_info['file_name'])  # file name 으로 path 읽음
-        image = Image.open(path).convert('RGB')
-        return image, (image_info['width'], image_info['height'])
+    def make_det_annos(self, anno):
 
-    def load_annotations(self, image_index):
-        # get ground truth annotations
-        annotations_ids = self.coco.getAnnIds(imgIds=self.image_ids[image_index], iscrowd=False)
         annotations = np.zeros((0, 5))
+        for idx, anno_dict in enumerate(anno):
 
-        # some images appear to miss annotations (like image with id 257034)
-        if len(annotations_ids) == 0:
-            return annotations
-
-        # parse annotations
-        coco_annotations = self.coco.loadAnns(annotations_ids)
-        for idx, a in enumerate(coco_annotations):
-            # a 는 하나의 object
-
-            # some annotations have basically no width / height, skip them
-            if a['bbox'][2] < 1 or a['bbox'][3] < 1:
+            if anno_dict['bbox'][2] < 1 or anno_dict['bbox'][3] < 1:
                 continue
 
             annotation = np.zeros((1, 5))
-            annotation[0, :4] = a['bbox']
-            annotation[0, 4] = self.coco_label_to_label(a['category_id'])
+            annotation[0, :4] = anno_dict['bbox']
+
+            annotation[0, 4] = self.coco_ids_to_continuous_ids[anno_dict['category_id']]  # 원래 category_id가 18이면 들어가는 값은 16
             annotations = np.append(annotations, annotation, axis=0)
 
         # transform from [x, y, w, h] to [x1, y1, x2, y2]
@@ -165,19 +235,6 @@ class COCO_Dataset(Dataset):
         annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
 
         return annotations
-
-    def coco_label_to_label(self, coco_label):
-        return self.coco_labels_inverse[coco_label]
-
-    def label_to_coco_label(self, label):
-        return self.coco_labels[label]
-
-    def image_aspect_ratio(self, image_index):
-        image = self.coco.loadImgs(self.image_ids[image_index])[0]
-        return float(image['width']) / float(image['height'])
-
-    def num_classes(self):
-        return 80
 
     def collate_fn(self, batch):
         """
@@ -197,20 +254,55 @@ class COCO_Dataset(Dataset):
         images = torch.stack(images, dim=0)
         return images, boxes, labels
 
+    def __len__(self):
+        return len(self.img_id)
+
 
 if __name__ == '__main__':
-    train_set = COCO_Dataset()
-    train_loader = DataLoader(train_set,
-                              batch_size=1,
-                              collate_fn=train_set.collate_fn,
-                              shuffle=False,
-                              num_workers=0,
-                              pin_memory=True)
 
-    for i, (images, boxes, labels) in enumerate(train_loader):
-        images = images.cuda()
-        boxes = [b.cuda() for b in boxes]
-        labels = [l.cuda() for l in labels]
+    device = torch.device('cuda:0')
+    import torchvision.transforms as transforms
+    import dataset.detection_transforms as det_transforms
 
+    transform_train = det_transforms.DetCompose([
+        # ------------- for Tensor augmentation -------------
+        det_transforms.DetRandomPhotoDistortion(),
+        det_transforms.DetRandomHorizontalFlip(),
+        det_transforms.DetToTensor(),
+        # ------------- for Tensor augmentation -------------
+        det_transforms.DetRandomZoomOut(max_scale=3),
+        det_transforms.DetRandomZoomIn(),
+        det_transforms.DetResize(size=(600, 600), box_normalization=True),
+        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    ])
 
+    transform_test = det_transforms.DetCompose([
+        det_transforms.DetToTensor(),
+        det_transforms.DetResize(size=800, max_size=1333, box_normalization=True),
+        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    ])
 
+    coco_dataset = COCO_Dataset(root="D:/data/coco",
+                                split='train',
+                                download=True,
+                                transform=transform_test,
+                                visualization=True)
+
+    train_loader = torch.utils.data.DataLoader(coco_dataset,
+                                               batch_size=1,
+                                               collate_fn=coco_dataset.collate_fn,
+                                               shuffle=False,
+                                               num_workers=0,
+                                               pin_memory=True)
+
+    for i, data in enumerate(train_loader):
+        images = data[0]
+        boxes = data[1]
+        labels = data[2]
+
+        images = images.to(device)
+        boxes = [b.to(device) for b in boxes]
+        labels = [l.to(device) for l in labels]
+        # print(labels)
