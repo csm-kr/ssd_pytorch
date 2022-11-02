@@ -184,13 +184,12 @@ class SSD(nn.Module):
 
         # get top k
         n_objects = score.shape[0]
-        top_k = 200
-        if n_objects > top_k:
-            sort_ind = score.argsort(axis=0)[::-1]
-            score = score[sort_ind][:top_k]      # (top_k)
-            bbox = bbox[sort_ind][:top_k]        # (top_k, 4)
-            label = label[sort_ind][:top_k]      # (top_k)
-
+        top_k = opts.top_k
+        if n_objects > opts.top_k:
+            sort_ind = score.argsort(axis=0)[::-1]    # [::-1] desending
+            score = score[sort_ind][:top_k]           # (top_k)
+            bbox = bbox[sort_ind][:top_k]             # (top_k, 4)
+            label = label[sort_ind][:top_k]           # (top_k)
         return bbox, label, score
 
 
