@@ -15,4 +15,4 @@ epoch = 200
 batch_size = 16
 
 # testing
-thres = 0.01
+thres = 0.05
