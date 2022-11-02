@@ -1,15 +1,11 @@
 import torch
 import torch.nn as nn
-from utils import cxcy_to_xy, cxcy_to_gcxgcy, xy_to_cxcy, find_jaccard_overlap
-from config import device
+from utils import cxcy_to_xy, encode, xy_to_cxcy, find_jaccard_overlap
 
 
 class MultiBoxLoss(nn.Module):
-    def __init__(self, priors_cxcy, threshold=0.5, neg_pos_ratio=3, alpha=10., ):
+    def __init__(self, threshold=0.5, neg_pos_ratio=3, alpha=10., ):
         super(MultiBoxLoss, self).__init__()
-
-        self.priors_cxcy = priors_cxcy
-        self.priors_xy = cxcy_to_xy(self.priors_cxcy)
 
         self.threshold = threshold
         self.neg_pos_ratio = neg_pos_ratio
@@ -20,31 +16,32 @@ class MultiBoxLoss(nn.Module):
         # self.smooth_l1 = nn.SmoothL1Loss()
         self.cross_entropy = nn.CrossEntropyLoss(reduce=False)
 
-    def forward(self, pred_loc, pred_cls, b_boxes, b_labels):
-        """
-        Forward propagation.
-        :param pred_loc: predicted locations/boxes (N, 8732, 4)
-        :param pred_cls: (N, 8732, 21)
-        :param labels: true object labels, a list of N tensors
-        """
+    def forward(self, pred, gt_boxes, gt_labels, center_anchor):
+
+        pred_cls = pred[0]
+        pred_loc = pred[1]
+        device_ = pred_cls.get_device()
         batch_size = pred_loc.size(0)
-        n_priors = self.priors_cxcy.size(0)
         n_classes = pred_cls.size(2)
 
-        assert n_priors == pred_loc.size(1) == pred_cls.size(1)
+        n_priors = int(center_anchor.size(0))
+        assert n_priors == pred_loc.size(1) == pred_cls.size(1)  # 67995 --> 120087
 
-        true_locs = torch.zeros((batch_size, n_priors, 4), dtype=torch.float).to(device)  # (N, 8732, 4)
-        true_classes = torch.zeros((batch_size, n_priors), dtype=torch.long).to(device)   # (N, 8732)
-        batch_postivie_default_box = torch.zeros((batch_size, n_priors), dtype=torch.bool).to(device)  # (N, 8732)
+        center_anchor = center_anchor.to(device_)
+        corner_anchor = cxcy_to_xy(center_anchor)
+
+        true_locs = torch.zeros((batch_size, n_priors, 4), dtype=torch.float).to(device_)  # (N, 8732, 4)
+        true_classes = torch.zeros((batch_size, n_priors), dtype=torch.long).to(device_)   # (N, 8732)
+        batch_postivie_default_box = torch.zeros((batch_size, n_priors), dtype=torch.bool).to(device_)  # (N, 8732)
 
         # batch 에 따라 cls, loc 가 모두 다르니 batch 로 나누어 준다.
         for i in range(batch_size):
-            boxes = b_boxes[i]
-            labels = b_labels[i]
+            boxes = gt_boxes[i]
+            labels = gt_labels[i]
             n_objects = boxes.size()[0]
             # ------------------------------------- my code -------------------------------------
             # step1 ) positive default box
-            iou = find_jaccard_overlap(boxes, self.priors_xy)   # [ num_obj, num_default_box ]
+            iou = find_jaccard_overlap(boxes, corner_anchor)   # [ num_obj, num_default_box ]
 
             # condition 1 - maximum iou
             _, obj_idx = iou.max(dim=1)  # [num_obj]
@@ -63,7 +60,8 @@ class MultiBoxLoss(nn.Module):
             _, max_prior_idx = iou.max(dim=0)  # iou 에서 max 인 cls 를 찾으려는 부분 idx
 
             # 모든 default box 의 label 을 구하고 positive prior box 만 연산
-            true_classes_ = labels[max_prior_idx] * positive_prior.type(torch.long)  # FIXME positive prior 이 float32
+            # FIXME positive prior 이 float32
+            true_classes_ = (labels[max_prior_idx] + 1) * positive_prior.type(torch.long)
             # --> long 으로
             true_classes[i] = true_classes_
 
@@ -72,7 +70,7 @@ class MultiBoxLoss(nn.Module):
             # b = xy_to_cxcy(boxes[max_prior_idx])
             true_locs_ = xy_to_cxcy(boxes[max_prior_idx])
             # bbox
-            true_locs_ = cxcy_to_gcxgcy(true_locs_, self.priors_cxcy)
+            true_locs_ = encode(true_locs_, center_anchor)
             true_locs[i] = true_locs_
 
         ###################################################
@@ -103,7 +101,7 @@ class MultiBoxLoss(nn.Module):
             conf_loss_neg, _ = conf_loss_neg.sort(dim=1, descending=True)  # (N, 8732), sorted by decreasing hardness
 
             n_hard_negatives = self.neg_pos_ratio * n_positives  # make number of each batch of hard samples using ratio
-            hardness_ranks = torch.LongTensor(range(n_priors)).unsqueeze(0).expand_as(conf_loss_neg).to(device)
+            hardness_ranks = torch.LongTensor(range(n_priors)).unsqueeze(0).expand_as(conf_loss_neg).to(device_)
             # make a row 0 to 8732 (N, 8732) shape's tensor to index hard negative samples
 
             hard_negative_mask = hardness_ranks < n_hard_negatives.unsqueeze(1)  # (N, 8732)
@@ -124,13 +122,13 @@ class MultiBoxLoss(nn.Module):
             gamma = 2
 
             # cvt to one hot encoding
-            y = torch.eye(21).to(device)  # [D,D]
+            y = torch.eye(21).to(device_)  # [D,D]
             targets = y[true_classes]
 
             targets = targets[..., 1:]    # remove background labels
             pred_cls = pred_cls[..., 1:]  # remove background prediction
 
-            alpha_factor = torch.ones(targets.shape).to(device) * alpha
+            alpha_factor = torch.ones(targets.shape).to(device_) * alpha
             a_t = torch.where((targets == 1), alpha_factor, 1. - alpha_factor)
             pred_cls = torch.sigmoid(pred_cls).clamp(1e-4, 1.0 - 1e-4)
             p_t = torch.where(targets == 1, pred_cls, 1 - pred_cls)  # p_t
@@ -142,29 +140,22 @@ class MultiBoxLoss(nn.Module):
         # TOTAL LOSS
         loc_loss = self.alpha * loc_loss
         total_loss = (conf_loss + loc_loss)
-        return total_loss, (loc_loss, conf_loss)
+        return total_loss, (conf_loss, loc_loss)
 
 
 if __name__ == '__main__':
-
-    from model import VGG, SSD
-    vgg = VGG(pretrained=True).to(device)
+    device = torch.device('cuda')
+    from models.model import SSD
     img = torch.FloatTensor(2, 3, 300, 300).to(device)
-
-    ssd = SSD(vgg).to(device)
-    img = torch.FloatTensor(2, 3, 300, 300).to(device)
-    loc, cls = ssd(img)
-
-    print(cls.size())
-    print(loc.size())
-
+    ssd = SSD(in_chs=3, num_classes=21).to(device)
+    pred = ssd(img)
+    pred_cls = pred[0]
+    pred_loc = pred[1]
+    print(pred_cls.size())
+    print(pred_loc.size())
     gt = [torch.Tensor([[0.426, 0.158, 0.788, 0.997]]).to(device),
           torch.Tensor([[0.002, 0.090, 0.998, 0.867]]).to(device)]
-
     label = [torch.Tensor([15.]).to(device),
              torch.Tensor([1.]).to(device)]
-
-    from anchor_boxes import create_anchor_boxes
-    priors_cxcy = create_anchor_boxes()
-    loss = MultiBoxLoss(priors_cxcy=priors_cxcy)
-    print(loss(loc, cls, gt, label))
+    loss = MultiBoxLoss()
+    print(loss(pred, gt, label, ssd.anchors))

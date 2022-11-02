@@ -1,17 +1,20 @@
+import os
+import math
 import torch
-import torch.nn.functional as F
-from torchvision.ops.boxes import nms as torchvision_nms
-from config import device
 import numpy as np
+import torch.nn.functional as F
+import torch.distributed as dist
+from torchvision.ops.boxes import nms as torchvision_nms
+
 
 # for voc label
 voc_labels = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable',
               'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor')
-voc_label_map = {k: v + 1 for v, k in enumerate(voc_labels)}
-voc_label_map['background'] = 0
+voc_label_map = {k: v for v, k in enumerate(voc_labels)}
+voc_label_map['background'] = 20
 voc_rev_label_map = {v: k for k, v in voc_label_map.items()}  # Inverse mapping
 np.random.seed(0)
-voc_color_array = np.random.randint(256, size=(21, 3))
+voc_color_array = np.random.randint(256, size=(21, 3)) / 255  # In plt, rgb color space's range from 0 to 1
 
 # for coco label
 coco_labels = ('person', 'bicycle', 'car', 'motorcycle', 'airplane',
@@ -31,51 +34,39 @@ coco_labels = ('person', 'bicycle', 'car', 'motorcycle', 'airplane',
                'toaster', 'sink', 'refrigerator', 'book', 'clock',
                'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush')
 
-coco_label_map = {k: v + 1 for v, k in enumerate(coco_labels)}  # {1 ~ 80 : 'person' ~ 'toothbrush'}
-coco_label_map['background'] = 0                                # {0 : 'background'}
+coco_label_map = {k: v for v, k in enumerate(coco_labels)}  # {0 ~ 79 : 'person' ~ 'toothbrush'}
+coco_label_map['background'] = 80                                # {80 : 'background'}
 coco_rev_label_map = {v: k for k, v in coco_label_map.items()}  # Inverse mapping
 np.random.seed(1)
-coco_color_array = np.random.randint(256, size=(81, 3))
+coco_color_array = np.random.randint(256, size=(81, 3)) / 255  # In plt, rgb color space's range from 0 to 1
+
+
+def bar_custom(current, total, width=30):
+    avail_dots = width-2
+    shaded_dots = int(math.floor(float(current) / total * avail_dots))
+    percent_bar = '[' + '■'*shaded_dots + ' '*(avail_dots-shaded_dots) + ']'
+    progress = "%d%% %s [%d / %d byte]" % (current / total * 100, percent_bar, current, total)
+    return progress
+
 
 def cxcy_to_xy(cxcy):
 
-    x1y1 = cxcy[:, :2] - cxcy[:, 2:] / 2
-    x2y2 = cxcy[:, :2] + cxcy[:, 2:] / 2
+    x1y1 = cxcy[..., :2] - cxcy[..., 2:] / 2
+    x2y2 = cxcy[..., :2] + cxcy[..., 2:] / 2
     return torch.cat([x1y1, x2y2], dim=1)
 
 
 def xy_to_cxcy(xy):
 
-    cxcy = (xy[:, 2:] + xy[:, :2]) / 2
-    wh = xy[:, 2:] - xy[:, :2]
+    cxcy = (xy[..., 2:] + xy[..., :2]) / 2
+    wh = xy[..., 2:] - xy[..., :2]
     return torch.cat([cxcy, wh], dim=1)
 
 
-def cxcy_to_gcxgcy(cxcy, priors_cxcy):
-
-    gcxcy = (cxcy[:, :2] - priors_cxcy[:, :2]) / priors_cxcy[:, 2:]
-    gwh = torch.log(cxcy[:, 2:] / priors_cxcy[:, 2:])
-    return torch.cat([gcxcy, gwh], dim=1)
-
-
-def gcxgcy_to_cxcy(gcxgcy, priors_cxcy):
-
-    cxcy = gcxgcy[:, :2] * priors_cxcy[:, 2:] + priors_cxcy[:, :2]
-    wh = torch.exp(gcxgcy[:, 2:]) * priors_cxcy[:, 2:]
+def xy_to_cxcy2(xy):
+    wh = xy[..., 2:] - xy[..., :2]
+    cxcy = xy[..., :2] + 0.5 * wh
     return torch.cat([cxcy, wh], dim=1)
-
-# def cxcy_to_gcxgcy(cxcy, priors_cxcy):
-#
-#     gcxcy = (cxcy[:, :2] - priors_cxcy[:, :2]) / (priors_cxcy[:, 2:] / 10)
-#     gwh = torch.log(cxcy[:, 2:] / priors_cxcy[:, 2:]) * 5
-#     return torch.cat([gcxcy, gwh], dim=1)
-#
-#
-# def gcxgcy_to_cxcy(gcxgcy, priors_cxcy):
-#
-#     cxcy = gcxgcy[:, :2] * priors_cxcy[:, 2:] / 10 + priors_cxcy[:, :2]
-#     wh = torch.exp(gcxgcy[:, 2:] / 5) * priors_cxcy[:, 2:]
-#     return torch.cat([cxcy, wh], dim=1)
 
 
 def find_jaccard_overlap(set_1, set_2, eps=1e-5):
@@ -117,6 +108,39 @@ def find_intersection(set_1, set_2):
     return intersection_dims[:, :, 0] * intersection_dims[:, :, 1]  # (n1, n2)  # 둘다 양수인 부분만 존재하게됨!
 
 
+def encode(gt_cxywh, anc_cxywh):
+    tg_cxy = (gt_cxywh[:, :2] - anc_cxywh[:, :2]) / anc_cxywh[:, 2:]
+    tg_wh = torch.log(gt_cxywh[:, 2:] / anc_cxywh[:, 2:])
+    tg_cxywh = torch.cat([tg_cxy, tg_wh], dim=1)
+    return tg_cxywh
+
+
+def decode(tcxcy, center_anchor):
+    cxcy = tcxcy[:, :2] * center_anchor[:, 2:] + center_anchor[:, :2]
+    wh = torch.exp(tcxcy[:, 2:]) * center_anchor[:, 2:]
+    cxywh = torch.cat([cxcy, wh], dim=1)
+    return cxywh
+
+
+def resume(opts, model, optimizer, scheduler):
+    if opts.start_epoch != 0:
+        # take pth at epoch - 1
+
+        f = os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.{}.pth.tar'.format(opts.start_epoch - 1))
+        device = torch.device('cuda:{}'.format(opts.gpu_ids[opts.rank]))
+        checkpoint = torch.load(f=f,
+                                map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])                              # load model state dict
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])                      # load optim state dict
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])                      # load sched state dict
+        if opts.rank == 0:
+            print('\nLoaded checkpoint from epoch %d.\n' % (int(opts.start_epoch) - 1))
+    else:
+        if opts.rank == 0:
+            print('\nNo check point to resume.. train from scratch.\n')
+    return model, optimizer, scheduler
+
+
 def nms(boxes, scores, iou_threshold=0.5, top_k=200):
 
     # 1. num obj
@@ -144,6 +168,7 @@ def nms(boxes, scores, iou_threshold=0.5, top_k=200):
 
 
 def detect_objects(priors_cxcy, predicted_locs, predicted_scores, min_score, max_overlap, top_k, n_classes=21):
+    device = predicted_locs.get_device()
     """
     batch 1 에 대한 boxes 와 labels 와 scores 를 찾는 함수
     :param priors_cxcy: [8732, 4]
@@ -217,3 +242,55 @@ def detect_objects(priors_cxcy, predicted_locs, predicted_scores, min_score, max
         image_labels = image_labels[sort_ind][:top_k]  # (top_k)
 
     return image_boxes, image_labels, image_scores  # lists of length batch_size
+
+
+def gcxgcy_to_cxcy(gcxgcy, priors_cxcy):
+
+    cxcy = gcxgcy[:, :2] * priors_cxcy[:, 2:] + priors_cxcy[:, :2]
+    wh = torch.exp(gcxgcy[:, 2:]) * priors_cxcy[:, 2:]
+    return torch.cat([cxcy, wh], dim=1)
+
+
+def cxcy_to_gcxgcy(cxcy, priors_cxcy):
+
+    gcxcy = (cxcy[:, :2] - priors_cxcy[:, :2]) / priors_cxcy[:, 2:]
+    gwh = torch.log(cxcy[:, 2:] / priors_cxcy[:, 2:])
+    return torch.cat([gcxcy, gwh], dim=1)
+
+
+def init_for_distributed(rank, opts):
+
+    # 1. setting for distributed training
+    opts.rank = rank
+    local_gpu_id = int(opts.gpu_ids[opts.rank])
+    torch.cuda.set_device(local_gpu_id)
+    if opts.rank is not None:
+        print("Use GPU: {} for training".format(local_gpu_id))
+
+    # # 2. init_process_group
+    dist.init_process_group(backend='nccl',
+                            init_method='tcp://127.0.0.1:23456',
+                            world_size=opts.world_size,
+                            rank=opts.rank)
+
+    # if put this function, the all processes block at all.
+    torch.distributed.barrier()
+    # convert print fn iif rank is zero
+    setup_for_distributed(opts.rank == 0)
+    print(opts)
+    return
+
+
+def setup_for_distributed(is_master):
+    """
+    This function disables printing when not in master process
+    """
+    import builtins as __builtin__
+    builtin_print = __builtin__.print
+
+    def print(*args, **kwargs):
+        force = kwargs.pop('force', False)
+        if is_master or force:
+            builtin_print(*args, **kwargs)
+
+    __builtin__.print = print
