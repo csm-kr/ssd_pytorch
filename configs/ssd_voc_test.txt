@@ -1,0 +1,18 @@
+# name
+name = ssd_voc
+
+# visualization
+vis_step = 100
+
+# data
+data_root = D:\data\voc
+in_ch = 3
+data_type = voc
+resize = 300
+
+# training
+epoch = 200
+batch_size = 16
+
+# testing
+thres = 0.05

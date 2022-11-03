@@ -9,6 +9,17 @@ pred/
 gt/
 results/
 
+detection_results/
+
+# voc mAP 
+.cache_dir
+
+# vscode setting
+.vscode
+
+# download
+*.tmp
+
 # pycharm IDE
 __pycache__/
 *.py[cod]

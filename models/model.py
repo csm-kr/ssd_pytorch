@@ -1,3 +1,4 @@
+import cv2
 import math
 import torch
 import numpy as np
@@ -157,11 +158,6 @@ class SSD(nn.Module):
             mask = prob_l > opts.thres               # [8732] - torch.bool
             cls_bbox_l = raw_cls_bbox[mask]
             prob_l = prob_l[mask]
-
-            # sorted_scores, idx_scores = prob_l.sort(descending=True)
-            # sorted_boxes = cls_bbox_l[idx_scores]
-            # keep = nms(sorted_boxes, sorted_scores, iou_threshold=0.3)
-
             keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
             bbox.append(cls_bbox_l[keep].cpu().numpy())
             label.append((l - 1) * np.ones((len(keep),)))
@@ -186,7 +182,7 @@ class SSD(nn.Module):
         n_objects = score.shape[0]
         top_k = opts.top_k
         if n_objects > opts.top_k:
-            sort_ind = score.argsort(axis=0)[::-1]    # [::-1] desending
+            sort_ind = score.argsort(axis=0)[::-1]    # [::-1] means descending
             score = score[sort_ind][:top_k]           # (top_k)
             bbox = bbox[sort_ind][:top_k]             # (top_k, 4)
             label = label[sort_ind][:top_k]           # (top_k)
