@@ -66,7 +66,7 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 9. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[120, 150], gamma=0.1)  # 115, 144
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[30, 60], gamma=0.1)
 
     # 10. logger
     xl_log_saver = None
