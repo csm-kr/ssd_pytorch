@@ -12,6 +12,13 @@ import configargparse
 from config import get_args_parser
 from models.build import build_model
 
+'''
+demo_image_transforms
+demo
+visualize_detection_result
+demo_worker
+'''
+
 
 def demo_image_transforms(demo_image):
 
@@ -42,44 +49,46 @@ def demo(model, opts):
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
-    # 4. for
+    # 4. load anchors
+    anchors = model.module.anchors.to(device)
+
     for idx, img_path in enumerate(demo_image_list):
 
-        # --------------------- img load ---------------------
+        # 5. load images
         demo_image_pil = Image.open(img_path).convert('RGB')
         demo_image = demo_image_transforms(demo_image_pil).to(device)
-        anchors = model.module.anchors.to(device)
-
         tic = time.time()
 
+        # 6. forward and predict
         pred = model(demo_image)
         pred_boxes, pred_labels, pred_scores = model.module.predict(pred, anchors, opts)
 
-        # make im_show
+        # 7. visualize results of object detection
         im_show = visualize_detection_result(demo_image_pil, pred_boxes, pred_labels, pred_scores)
 
-        # save_files
+        # 8. save files
         demo_result_path = os.path.join(opts.demo_root, 'detection_results')
         os.makedirs(demo_result_path, exist_ok=True)
 
-        # 0 ~ 1 image -> 0~255 image
+        # 9. rescaling from 0 ~ 1 image to 0 ~ 255 image
         im_show = cv2.convertScaleAbs(im_show, alpha=(255.0))
         cv2.imwrite(os.path.join(demo_result_path, os.path.basename(img_path)), im_show)
 
         if opts.demo_vis:
-            cv2.imshow('i', im_show)
+            cv2.imshow('demo_results', im_show)
             cv2.waitKey(0)
 
         toc = time.time()
         inference_time = toc - tic
         total_time += inference_time
 
+        # 10. evaluate fps
         if idx % 100 == 0 or idx == len(demo_image_list) - 1:
             # ------------------- check fps -------------------
             print('Step: [{}/{}]'.format(idx, len(demo_image_list)))
             print("fps : {:.4f}".format((idx + 1) / total_time))
 
-    print("complete detect!")
+    print("complete detection...!")
     return
 
 

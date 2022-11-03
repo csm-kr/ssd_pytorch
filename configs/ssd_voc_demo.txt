@@ -19,4 +19,4 @@ thres = 0.15
 
 # demo
 demo_root = ./demo_figure/voc
-demo_vis_true
+# demo_vis_true

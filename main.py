@@ -95,15 +95,15 @@ def main_worker(rank, opts):
                         opts=opts)
 
         # 12. test
-        test_and_eval(epoch=epoch,
-                      vis=vis,
-                      test_loader=test_loader,
-                      model=model,
-                      criterion=criterion,
-                      opts=opts,
-                      xl_log_saver=xl_log_saver,
-                      result_best=result_best,
-                      is_load=False)
+        result_best = test_and_eval(epoch=epoch,
+                                    vis=vis,
+                                    test_loader=test_loader,
+                                    model=model,
+                                    criterion=criterion,
+                                    opts=opts,
+                                    xl_log_saver=xl_log_saver,
+                                    result_best=result_best,
+                                    is_load=False)
 
         scheduler.step()
 
