@@ -2,7 +2,7 @@
 name = ssd_voc
 
 # visualization
-vis_step = 100
+vis_step = 1000
 
 # data
 data_root = D:\data\voc

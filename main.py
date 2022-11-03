@@ -78,13 +78,13 @@ def main_worker(rank, opts):
     # 11. resume
     model, optimizer, scheduler = resume(opts, model, optimizer, scheduler)
 
-    # set best results
+    # 12. set best results
     result_best = {'epoch': 0, 'mAP': 0., 'val_loss': 0.}
 
     # for statement
     for epoch in range(opts.start_epoch, opts.epoch):
 
-        # 11. train
+        # 13. train
         train_one_epoch(epoch=epoch,
                         vis=vis,
                         train_loader=train_loader,
@@ -94,16 +94,16 @@ def main_worker(rank, opts):
                         scheduler=scheduler,
                         opts=opts)
 
-        # 12. test
-        result_best = test_and_eval(epoch=epoch,
-                                    vis=vis,
-                                    test_loader=test_loader,
-                                    model=model,
-                                    criterion=criterion,
-                                    opts=opts,
-                                    xl_log_saver=xl_log_saver,
-                                    result_best=result_best,
-                                    is_load=False)
+        # 14. test and eval
+        test_and_eval(epoch=epoch,
+                      vis=vis,
+                      test_loader=test_loader,
+                      model=model,
+                      criterion=criterion,
+                      opts=opts,
+                      xl_log_saver=xl_log_saver,
+                      result_best=result_best,
+                      is_load=False)
 
         scheduler.step()
 

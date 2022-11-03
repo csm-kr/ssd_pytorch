@@ -165,12 +165,13 @@ def demo_worker(rank, opts):
     # 2. device
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
-    # 5. model
+    # 3. data
     if opts.data_type == 'voc':
         opts.num_classes = 21
     if opts.data_type == 'coco':
         opts.num_classes = 81
 
+    # 4. model
     model = build_model(opts)
     model = model.to(device)
 

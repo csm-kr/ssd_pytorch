@@ -103,4 +103,56 @@ def test_and_eval(epoch, vis, test_loader, model, criterion, opts, xl_log_saver=
                 checkpoint = {'epoch': epoch,
                               'model_state_dict': model.state_dict()}
             torch.save(checkpoint, os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.best.pth.tar'))
-        return result_best
+        return
+
+
+def test_worker(rank, opts):
+
+    from dataset.build import build_dataloader
+    from models.build import build_model
+    from loss import MultiBoxLoss
+
+    # 1. config
+    print(opts)
+
+    # 2. device
+    device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
+
+    # 3. visdom
+    vis = None
+
+    # 4. dataloader
+    _, test_loader = build_dataloader(opts)
+
+    # 5. network
+    model = build_model(opts)
+
+    # 6. loss
+    criterion = MultiBoxLoss()
+
+    # 7. loss
+    test_and_eval(epoch=opts.test_epoch,
+                  vis=vis,
+                  test_loader=test_loader,
+                  model=model,
+                  criterion=criterion,
+                  opts=opts,
+                  is_load=True)
+
+
+if __name__ == "__main__":
+    import configargparse
+    from config import get_args_parser
+
+    parser = configargparse.ArgumentParser('SSD test', parents=[get_args_parser()])
+    opts = parser.parse_args()
+
+    opts.world_size = len(opts.gpu_ids)
+    opts.num_workers = len(opts.gpu_ids) * 4
+
+    print(opts)
+    test_worker(0, opts)
+
+
+
+
