@@ -54,9 +54,9 @@ def create_anchors():
                         center_anchors.append([cx, cy, additional_scale, additional_scale])
 
     center_anchors = torch.FloatTensor(center_anchors)   # (8732, 4)
-    center_anchors.clamp_(0, 1)                       # (8732, 4)
+    center_anchors.clamp_(0, 1)                          # (8732, 4)
 
-    visualization = False
+    visualization = True
     num_vis_anchors = 1000
     if visualization:
         from utils import cxcy_to_xy, xy_to_cxcy
@@ -72,11 +72,10 @@ def create_anchors():
 
         size = 300
         img = torch.ones([size, size, 3], dtype=torch.float32)
-
-        plt.imshow(img)
         axes = plt.axes()
         axes.set_xlim([- 1 / 3 * size, size + 1 / 3 * size])
         axes.set_ylim([- 1 / 3 * size, size + 1 / 3 * size])
+        plt.imshow(img)
 
         for anchor in corner_anchors[:num_vis_anchors]:
             x1 = anchor[0] * size
