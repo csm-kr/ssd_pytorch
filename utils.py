@@ -51,14 +51,14 @@ def cxcy_to_xy(cxcy):
 
     x1y1 = cxcy[..., :2] - cxcy[..., 2:] / 2
     x2y2 = cxcy[..., :2] + cxcy[..., 2:] / 2
-    return torch.cat([x1y1, x2y2], dim=1)
+    return torch.cat([x1y1, x2y2], dim=-1)
 
 
 def xy_to_cxcy(xy):
 
     cxcy = (xy[..., 2:] + xy[..., :2]) / 2
     wh = xy[..., 2:] - xy[..., :2]
-    return torch.cat([cxcy, wh], dim=1)
+    return torch.cat([cxcy, wh], dim=-1)
 
 
 def xy_to_cxcy2(xy):

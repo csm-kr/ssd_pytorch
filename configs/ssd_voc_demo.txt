@@ -5,14 +5,14 @@ name = ssd_voc
 vis_step = 100
 
 # data
-data_root = D:\data\voc
+data_root = /home/cvmlserver7/Sungmin/data/voc/
 in_ch = 3
 data_type = voc
 resize = 300
 
 # training
-epoch = 200
-batch_size = 16
+epoch = 100
+batch_size = 32
 
 # testing
 thres = 0.15
@@ -20,3 +20,6 @@ thres = 0.15
 # demo
 demo_root = ./demo_figure/voc
 demo_vis_true
+
+# gpu ids
+gpu_ids = 1

@@ -56,7 +56,7 @@ def create_anchors():
     center_anchors = torch.FloatTensor(center_anchors)   # (8732, 4)
     center_anchors.clamp_(0, 1)                          # (8732, 4)
 
-    visualization = True
+    visualization = False
     num_vis_anchors = 1000
     if visualization:
         from utils import cxcy_to_xy, xy_to_cxcy
