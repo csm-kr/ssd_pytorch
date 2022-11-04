@@ -12,7 +12,7 @@ resize = 300
 
 # training
 epoch = 100
-batch_size = 32
+batch_size = 16
 
 # testing
 thres = 0.15

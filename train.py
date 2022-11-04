@@ -31,6 +31,7 @@ def train_one_epoch(epoch, vis, train_loader, model, criterion, optimizer, sched
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         toc = time.time() - tic
 

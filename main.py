@@ -18,6 +18,7 @@ from loss import MultiBoxLoss
 
 # scheduler
 from torch.optim.lr_scheduler import MultiStepLR
+from scheduler import CosineAnnealingWarmupRestarts
 
 # log
 from log import XLLogSaver
@@ -66,7 +67,15 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 9. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[30, 60], gamma=0.1)
+    # scheduler = MultiStepLR(optimizer=optimizer, milestones=[30, 60], gamma=0.1)
+    scheduler = CosineAnnealingWarmupRestarts(
+        optimizer,
+        first_cycle_steps=int(opts.epoch * len(train_loader)),
+        cycle_mult=1.,
+        max_lr=opts.lr,
+        min_lr=1e-6,
+        warmup_steps=int(opts.warmup_epoch * len(train_loader)),
+        )
 
     # 10. logger
     xl_log_saver = None
@@ -105,7 +114,7 @@ def main_worker(rank, opts):
                       result_best=result_best,
                       is_load=False)
 
-        scheduler.step()
+        # scheduler.step()
 
 
 if __name__ == "__main__":

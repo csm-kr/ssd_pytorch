@@ -5,7 +5,7 @@ re-implementation of SSD detection : https://arxiv.org/abs/1512.02325
 ### Training Setting
 
 ```
-- batch size : 32
+- batch size : 16
 - optimizer : SGD
 - epoch : 100 
 - initial learning rate 0.001
