@@ -73,7 +73,7 @@ def main_worker(rank, opts):
         first_cycle_steps=int(opts.epoch * len(train_loader)),
         cycle_mult=1.,
         max_lr=opts.lr,
-        min_lr=1e-6,
+        min_lr=1e-4,
         warmup_steps=int(opts.warmup_epoch * len(train_loader)),
         )
 

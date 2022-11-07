@@ -5,13 +5,27 @@ re-implementation of SSD detection : https://arxiv.org/abs/1512.02325
 ### Training Setting
 
 ```
+voc : 16551
+batch : 32  
+517.218 ~ 518 iters per epoch, 2 epochs == 1K
+so 10s epoch is 5K and 100 epochs 50K, 200s epoch 100K (to 1e-4)
+120 epochs is 60K, 40 epochs is 20 K
+
+coco : 117,266
+batch : 32
+3665 iters per epoch, 1 epoch == 3~4K
+160, 40, 40
+45 epoch, 10 epoch, 10 epoch 
+```
+
+```
 - batch size : 16
 - optimizer : SGD
-- epoch : 100 
-- initial learning rate 0.001
+- epoch : 200 
+- initial learning rate 0.001 to (0.0001)
 - weight decay : 5e-4
 - momentum : 0.9
-- scheduler : MultiStepLR 1e-3(~30), 1e-4(~60), 1e-5(~100)
+- scheduler : CosineAnnealingWarmupRestarts
 ```
 
 ### Results
