@@ -11,7 +11,7 @@ data_type = voc
 resize = 300
 
 # training
-epoch = 100
+epoch = 200
 batch_size = 16
 
 # testing
