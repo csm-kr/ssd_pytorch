@@ -36,8 +36,8 @@ def get_args_parser():
     # testing
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--test_epoch', type=str, default='best')
-    parser.add_argument('--thres', type=float, default=0.05, help='score threshold - 0.05 for test 0.5 for demo')
-    parser.add_argument('--top_k', type=int, default=200, help='set top k for after nms')
+    parser.add_argument('--thres', type=float, default=0.01, help='score threshold - 0.05 for test 0.5 for demo')
+    parser.add_argument('--top_k', type=int, default=300, help='set top k for after nms')
 
     # demo
     parser.add_argument('--demo_root', type=str, help='set demo root')

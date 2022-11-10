@@ -58,7 +58,7 @@ def main_worker(rank, opts):
     model = build_model(opts)
 
     # 7. loss
-    criterion = MultiBoxLoss(alpha=10.)
+    criterion = MultiBoxLoss()
 
     # 8. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),
@@ -73,7 +73,7 @@ def main_worker(rank, opts):
         first_cycle_steps=int(opts.epoch * len(train_loader)),
         cycle_mult=1.,
         max_lr=opts.lr,
-        min_lr=5e-5,
+        min_lr=1e-4,
         warmup_steps=int(opts.warmup_epoch * len(train_loader)),
         )
 

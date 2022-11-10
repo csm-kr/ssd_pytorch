@@ -12,10 +12,10 @@ resize = 300
 
 # training
 epoch = 200
-batch_size = 16
+batch_size = 32
 
 # testing
-thres = 0.05
+thres = 0.01
 
 # gpu ids
 gpu_ids = 1

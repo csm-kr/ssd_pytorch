@@ -59,7 +59,7 @@ class TargetMaker(nn.Module):
 
 
 class MultiBoxLoss(nn.Module):
-    def __init__(self, neg_pos_ratio=3, alpha=10.):
+    def __init__(self, neg_pos_ratio=3, alpha=1.):
         super(MultiBoxLoss, self).__init__()
 
         self.neg_pos_ratio = neg_pos_ratio
