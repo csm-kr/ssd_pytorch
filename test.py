@@ -7,7 +7,7 @@ from evaluation.evaluator import Evaluator
 
 
 @torch.no_grad()
-def test_and_eval(epoch, vis, test_loader, model, criterion, opts, xl_log_saver=None, result_best=None, is_load=False):
+def test_and_eval(opts, epoch, vis, device, test_loader, model, criterion, xl_log_saver=None, result_best=None, is_load=False):
 
     # 0. evaluator
     evaluator = Evaluator(data_type=opts.data_type)  # opts.data_type : voc or coco
@@ -103,7 +103,7 @@ def test_and_eval(epoch, vis, test_loader, model, criterion, opts, xl_log_saver=
                 checkpoint = {'epoch': epoch,
                               'model_state_dict': model.state_dict()}
             torch.save(checkpoint, os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.best.pth.tar'))
-        return
+    return
 
 
 def test_worker(rank, opts):
@@ -131,12 +131,13 @@ def test_worker(rank, opts):
     criterion = MultiBoxLoss()
 
     # 7. loss
-    test_and_eval(epoch=opts.test_epoch,
+    test_and_eval(opts=opts,
+                  epoch=opts.test_epoch,
                   vis=vis,
+                  device=device,
                   test_loader=test_loader,
                   model=model,
                   criterion=criterion,
-                  opts=opts,
                   is_load=True)
 
 

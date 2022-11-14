@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 
 
-def train_one_epoch(epoch, vis, train_loader, model, criterion, optimizer, scheduler, opts):
+def train_one_epoch(opts, epoch, vis, device, train_loader, model, criterion, optimizer, scheduler):
 
     print('Training of epoch [{}]'.format(epoch))
 
@@ -31,7 +31,7 @@ def train_one_epoch(epoch, vis, train_loader, model, criterion, optimizer, sched
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        scheduler.step()
+        # scheduler.step()
 
         toc = time.time() - tic
 

@@ -67,15 +67,15 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 9. scheduler
-    # scheduler = MultiStepLR(optimizer=optimizer, milestones=[30, 60], gamma=0.1)
-    scheduler = CosineAnnealingWarmupRestarts(
-        optimizer,
-        first_cycle_steps=int(opts.epoch * len(train_loader)),
-        cycle_mult=1.,
-        max_lr=opts.lr,
-        min_lr=1e-4,
-        warmup_steps=int(opts.warmup_epoch * len(train_loader)),
-        )
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[150], gamma=0.1)
+    # scheduler = CosineAnnealingWarmupRestarts(
+    #     optimizer,
+    #     first_cycle_steps=int(opts.epoch * len(train_loader)),
+    #     cycle_mult=1.,
+    #     max_lr=opts.lr,
+    #     min_lr=1e-4,
+    #     warmup_steps=int(opts.warmup_epoch * len(train_loader)),
+    #     )
 
     # 10. logger
     xl_log_saver = None
@@ -94,27 +94,30 @@ def main_worker(rank, opts):
     for epoch in range(opts.start_epoch, opts.epoch):
 
         # 13. train
-        train_one_epoch(epoch=epoch,
+        train_one_epoch(opts=opts,
+                        epoch=epoch,
+                        device=device,
                         vis=vis,
                         train_loader=train_loader,
                         model=model,
                         criterion=criterion,
                         optimizer=optimizer,
                         scheduler=scheduler,
-                        opts=opts)
+                        )
 
         # 14. test and eval
-        test_and_eval(epoch=epoch,
+        test_and_eval(opts=opts,
+                      epoch=epoch,
+                      device=device,
                       vis=vis,
                       test_loader=test_loader,
                       model=model,
                       criterion=criterion,
-                      opts=opts,
                       xl_log_saver=xl_log_saver,
                       result_best=result_best,
                       is_load=False)
 
-        # scheduler.step()
+        scheduler.step()
 
 
 if __name__ == "__main__":

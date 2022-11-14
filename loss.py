@@ -66,7 +66,7 @@ class MultiBoxLoss(nn.Module):
         self.alpha = alpha
 
         self.cross_entropy = nn.CrossEntropyLoss(reduce=False)
-        self.smooth_l1 = nn.L1Loss()
+        self.smooth_l1 = nn.SmoothL1Loss()
         self.target_maker = TargetMaker()
 
     def forward(self, pred, gt_boxes, gt_labels, center_anchor):

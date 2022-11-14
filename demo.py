@@ -33,7 +33,7 @@ def demo_image_transforms(demo_image):
 
 
 @ torch.no_grad()
-def demo(model, opts):
+def demo(opts, model):
 
     # 1. device
     device = torch.device(f'cuda:{int(opts.gpu_ids[opts.rank])}')
@@ -175,8 +175,8 @@ def demo_worker(rank, opts):
     model = build_model(opts)
     model = model.to(device)
 
-    demo(model=model,
-         opts=opts)
+    demo(opts=opts,
+         model=model)
 
 
 if __name__ == '__main__':
