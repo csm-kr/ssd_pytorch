@@ -2,23 +2,20 @@ import configargparse
 
 
 def get_args_parser():
+    # config
     parser = configargparse.ArgumentParser(add_help=False)
     parser.add_argument('--config', is_config_file=True, help='config file path')
-    parser.add_argument('--name', type=str)
+    parser.add_argument('--name', type=str)                             # TODO
 
-    # visualization
-    parser.add_argument('--visdom_port', type=int, default=8899)
+    # visdom
+    parser.add_argument('--visdom_port', type=int)                      # TODO
     parser.add_argument('--vis_step', type=int, default=100)
 
-    # save
-    parser.add_argument('--start_epoch', type=int, default=0)
-    parser.add_argument('--log_dir', type=str, default='./logs')
-
     # data
-    parser.add_argument('--data_root', type=str)
-    parser.add_argument('--in_chs', type=int)
-    parser.add_argument('--data_type', type=str)
-    parser.add_argument('--resize', type=int)
+    parser.add_argument('--data_root', type=str)                        # TODO
+    parser.add_argument('--data_type', type=str)                        # TODO
+    parser.add_argument('--in_chs', type=int, default=3)
+    parser.add_argument('--resize', type=int, default=300)
     parser.add_argument('--num_workers', type=int, default=0)
 
     # model
@@ -32,17 +29,18 @@ def get_args_parser():
     parser.add_argument('--warmup_epoch', type=int, default=1)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
+    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--log_dir', type=str, default='./logs')
 
     # testing
-    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--test_epoch', type=str, default='best')
-    parser.add_argument('--thres', type=float, default=0.01, help='score threshold - 0.05 for test 0.5 for demo')
-    parser.add_argument('--top_k', type=int, default=300, help='set top k for after nms')
+    parser.add_argument('--thres', type=float, default=0.05, help='score threshold - 0.05 for test 0.5 for demo')
+    parser.add_argument('--top_k', type=int, default=200, help='set top k for after nms')
 
     # demo
-    parser.add_argument('--demo_root', type=str, help='set demo root')
     parser.add_argument('--demo_epoch', type=str, default='best')
-    parser.add_argument('--demo_image_type', type=str, default='jpg')
+    parser.add_argument('--demo_root', type=str, help='set demo root')  # TODO
+    parser.add_argument('--demo_image_type', type=str)                  # TODO
     parser.set_defaults(demo_vis=False)
     parser.add_argument('--demo_vis_true', dest='demo_vis', action='store_true')
 
