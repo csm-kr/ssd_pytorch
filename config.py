@@ -44,7 +44,7 @@ def get_args_parser():
     parser.set_defaults(demo_vis=False)
     parser.add_argument('--demo_vis_true', dest='demo_vis', action='store_true')
 
-    # for multi-gpu
+    # distributed
     parser.add_argument('--distributed_true', dest='distributed', action='store_true')
     parser.add_argument('--gpu_ids', nargs="+", default=['0'])   # usage : --gpu_ids 0, 1, 2, 3
     parser.add_argument('--rank', type=int, default=0)
