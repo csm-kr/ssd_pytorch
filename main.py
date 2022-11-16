@@ -67,7 +67,7 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 9. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[150], gamma=0.1)
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[80, 160], gamma=0.1)
     # scheduler = CosineAnnealingWarmupRestarts(
     #     optimizer,
     #     first_cycle_steps=int(opts.epoch * len(train_loader)),

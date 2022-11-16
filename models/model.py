@@ -46,8 +46,8 @@ class SSD(nn.Module):
                                     )
 
         self.rescale_factors = nn.Parameter(torch.FloatTensor(1, 512, 1, 1))  # there are 512 channels in conv4_3_feats
-        nn.init.xavier_normal_(self.rescale_factors)
-        # nn.init.constant_(self.rescale_factors, 20)
+        # nn.init.xavier_normal_(self.rescale_factors)
+        nn.init.constant_(self.rescale_factors, 20)
 
         self.loc = nn.ModuleList([nn.Conv2d(in_channels=512, out_channels=4 * 4, kernel_size=3, padding=1),
                                   nn.Conv2d(in_channels=1024, out_channels=6 * 4, kernel_size=3, padding=1),
@@ -158,7 +158,7 @@ class SSD(nn.Module):
             mask = prob_l > opts.thres               # [8732] - torch.bool
             cls_bbox_l = raw_cls_bbox[mask]
             prob_l = prob_l[mask]
-            keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
+            keep = nms(cls_bbox_l, prob_l, iou_threshold=0.45)
             bbox.append(cls_bbox_l[keep].cpu().numpy())
             label.append((l - 1) * np.ones((len(keep),)))
             score.append(prob_l[keep].cpu().numpy())
