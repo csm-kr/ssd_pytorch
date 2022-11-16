@@ -54,7 +54,7 @@ def create_anchors():
                         center_anchors.append([cx, cy, additional_scale, additional_scale])
 
     center_anchors = torch.FloatTensor(center_anchors)   # (8732, 4)
-    # center_anchors.clamp_(0, 1)                          # (8732, 4)
+    center_anchors.clamp_(0, 1)                          # (8732, 4)
 
     visualization = False
     num_vis_anchors = 1000

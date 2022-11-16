@@ -2,7 +2,7 @@
 name = ssd_voc
 
 ## visdom
-visdom_port = 7777
+visdom_port = 8899
 
 ## data
 data_root = /home/cvmlserver7/Sungmin/data/voc
