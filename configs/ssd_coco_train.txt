@@ -1,12 +1,12 @@
 ## name
-name = ssd_voc
+name = ssd_coco
 
 ## visdom
 visdom_port = 8899
 
 ## data
-data_root = /home/cvmlserver7/Sungmin/data/voc
-data_type = voc
+data_root = /home/cvmlserver7/Sungmin/data/coco
+data_type = coco
 
 ## training
 # epoch = 200
@@ -18,5 +18,5 @@ data_type = voc
 ## demo
 
 ## distributed
-gpu_ids = 0
+gpu_ids = 1
 

@@ -5,6 +5,16 @@ re-implementation of SSD detection : https://arxiv.org/abs/1512.02325
 ### Training Setting
 
 ```
+- batch size : 32
+- optimizer : SGD
+- epoch : 200 
+- initial learning rate 0.001 to (0.0001/0.00001)
+- weight decay : 5e-4
+- momentum : 0.9
+- scheduler : step LR [120, 150]
+```
+
+```
 https://github.com/amdegroot/ssd.pytorch/blob/master/data/config.py
 voc -  120000
 coco - 400000
@@ -31,25 +41,14 @@ batch : 32
 200 epoch : 800000 iters
 ```
 
-
-```
-- batch size : 16
-- optimizer : SGD
-- epoch : 200 [80, 160]
-- initial learning rate 0.001 to (0.0001)
-- weight decay : 5e-4
-- momentum : 0.9
-- scheduler : CosineAnnealingWarmupRestarts
-```
-
 ### Results
 
 - voc
 
-|methods     |  Training Dataset   |   Testing Dataset  | Resolution |     AP50        |Time | Fps  |
-|------------|---------------------|--------------------|------------| ----------------|-----|------|
-|papers      |2007 + 2012          |  2007              | 300 x 300  |      74.3       |     |  46  |
-|this repo   |2007 + 2012          |  2007              | 300 x 300  |   75.81(+2.61)  |     |      |
+|methods     |  Training Dataset   |   Testing Dataset  | Resolution |     AP50        | Time | Fps  |
+|------------|---------------------|--------------------|------------| ----------------|------|------|
+|papers      |2007 + 2012          |  2007              | 300 x 300  |      74.3       |      |  46  |
+|this repo   |2007 + 2012          |  2007              | 300 x 300  |   75.58(+1.28)  |      |      |
 
 
 - coco

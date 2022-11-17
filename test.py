@@ -151,7 +151,6 @@ if __name__ == "__main__":
     opts.world_size = len(opts.gpu_ids)
     opts.num_workers = len(opts.gpu_ids) * 4
 
-    print(opts)
     test_worker(0, opts)
 
 

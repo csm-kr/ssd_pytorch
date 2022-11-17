@@ -159,33 +159,33 @@ def visualize_detection_result(x, bbox, label, score):
 
 def demo_worker(rank, opts):
 
-    # 1. config
+    # 0. config
     print(opts)
 
-    # 2. device
+    # 1. device
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
-    # 3. data
+    # 2. data
     if opts.data_type == 'voc':
         opts.num_classes = 21
     if opts.data_type == 'coco':
         opts.num_classes = 81
 
-    # 4. model
+    # 3. model
     model = build_model(opts)
     model = model.to(device)
 
+    # 4. demo
     demo(opts=opts,
          model=model)
 
 
 if __name__ == '__main__':
 
-    parser = configargparse.ArgumentParser('faster rcnn demo', parents=[get_args_parser()])
+    parser = configargparse.ArgumentParser('SSD demo', parents=[get_args_parser()])
     opts = parser.parse_args()
 
     opts.world_size = len(opts.gpu_ids)
     opts.num_workers = len(opts.gpu_ids) * 4
 
-    print(opts)
     demo_worker(0, opts)

@@ -1,25 +1,20 @@
-# name
+## name
 name = ssd_voc
 
-# visualization
-vis_step = 100
+## visdom
 
-# data
-data_root = /home/cvmlserver7/Sungmin/data/voc/
-in_ch = 3
+## data
 data_type = voc
-resize = 300
 
-# training
-epoch = 100
-batch_size = 16
+## training
 
 # testing
-thres = 0.15
+thres = 0.5
 
-# demo
+## demo
 demo_root = ./demo_figure/voc
-demo_vis_true
+demo_image_type = jpg
+# demo_vis_true
 
-# gpu ids
-gpu_ids = 1
+## distributed
+gpu_ids = 0
