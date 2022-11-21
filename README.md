@@ -48,7 +48,7 @@ batch : 32
 |methods     |  Training Dataset   |   Testing Dataset  | Resolution |     AP50        | Time | Fps  |
 |------------|---------------------|--------------------|------------| ----------------|------|------|
 |papers      |2007 + 2012          |  2007              | 300 x 300  |      74.3       |      |  46  |
-|this repo   |2007 + 2012          |  2007              | 300 x 300  |   75.58(+1.28)  |      |      |
+|this repo   |2007 + 2012          |  2007              | 300 x 300  |   75.58(+1.28)  |      |  42  |
 
 
 - coco
@@ -56,7 +56,22 @@ batch : 32
 |methods     | Training Dataset   |    Testing Dataset     | Resolution | AP        |AP50     |AP75    |Time | Fps  |
 |------------|--------------------| ---------------------- | ---------- | --------- |---------|--------| ----| ---- |
 |papers      | COCOtrain2017      |  COCO test-dev         | 300 x 300  |  23.2     |41.2     |23.4    |-    | -    |
-|ours        | COCOtrain2017      |  COCOval2017(minival)  | 300 x 300  |  -        |-        |-       |-    | -    |
+|ours        | COCOtrain2017      |  COCOval2017(minival)  | 300 x 300  |  22.0     |37.7     |22.6    |-    | -    |
+
+```
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.220
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.377
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.226
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.045
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.253
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.371
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.212
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.310
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.327
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.066
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.373
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.534
+```
 
 ### Start Guide
 

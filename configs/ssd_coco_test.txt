@@ -1,12 +1,12 @@
 ## name
-name = ssd_voc
+name = ssd_coco
 
 ## visdom
 
 ## data
-data_root = /home/cvmlserver7/Sungmin/data/voc
-# data_root = D:\data\voc
-data_type = voc
+# data_root = /home/cvmlserver7/Sungmin/data/coco
+data_root = D:\data\coco
+data_type = coco
 
 ## training
 # epoch = 200

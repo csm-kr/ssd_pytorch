@@ -62,6 +62,7 @@ def demo(opts, model):
         # 6. forward and predict
         pred = model(demo_image)
         pred_boxes, pred_labels, pred_scores = model.module.predict(pred, anchors, opts)
+        toc = time.time()
 
         # 7. visualize results of object detection
         im_show = visualize_detection_result(demo_image_pil, pred_boxes, pred_labels, pred_scores)
@@ -78,7 +79,6 @@ def demo(opts, model):
             cv2.imshow('demo_results', im_show)
             cv2.waitKey(0)
 
-        toc = time.time()
         inference_time = toc - tic
         total_time += inference_time
 

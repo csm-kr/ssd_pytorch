@@ -1,10 +1,10 @@
 ## name
-name = ssd_voc
+name = ssd_coco
 
 ## visdom
 
 ## data
-data_type = voc
+data_type = coco
 
 ## training
 
@@ -13,7 +13,7 @@ thres = 0.05
 
 ## demo
 # demo_root = ./demo_figure/voc
-demo_root = D:\data\voc\VOCtest_06-Nov-2007\VOCdevkit\VOC2007\JPEGImages
+# demo_root = D:\data\coco\images\val2017
 
 demo_image_type = jpg
 # demo_vis_true
