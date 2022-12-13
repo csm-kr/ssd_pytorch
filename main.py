@@ -8,17 +8,16 @@ import configargparse
 from config import get_args_parser
 
 # dataset
-from dataset.build import build_dataloader
+from datasets.build import build_dataloader
 
 # model
 from models.build import build_model
 
 # loss
-from loss import MultiBoxLoss
+from losses.build import build_loss
 
 # scheduler
 from torch.optim.lr_scheduler import MultiStepLR
-from scheduler import CosineAnnealingWarmupRestarts
 
 # log
 from log import XLLogSaver
@@ -34,7 +33,7 @@ from test import test_and_eval
 
 # distributed
 import torch.multiprocessing as mp
-from utils import init_for_distributed, resume
+from utils.util import init_for_distributed, resume
 
 
 def main_worker(rank, opts):
@@ -58,7 +57,7 @@ def main_worker(rank, opts):
     model = build_model(opts)
 
     # 7. loss
-    criterion = MultiBoxLoss()
+    criterion = build_loss(opts)
 
     # 8. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),
@@ -90,7 +89,7 @@ def main_worker(rank, opts):
                         epoch=epoch,
                         device=device,
                         vis=vis,
-                        train_loader=train_loader,
+                        loader=train_loader,
                         model=model,
                         criterion=criterion,
                         optimizer=optimizer,
@@ -102,9 +101,11 @@ def main_worker(rank, opts):
                       epoch=epoch,
                       device=device,
                       vis=vis,
-                      test_loader=test_loader,
+                      loader=test_loader,
                       model=model,
                       criterion=criterion,
+                      optimizer=optimizer,
+                      scheduler=scheduler,
                       xl_log_saver=xl_log_saver,
                       result_best=result_best,
                       is_load=False)

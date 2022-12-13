@@ -6,7 +6,7 @@ import torch.nn as nn
 from models.vgg import VGG
 from torchvision.ops import nms
 from models.anchor import create_anchors
-from utils import cxcy_to_xy, decode
+from utils.util import cxcy_to_xy, decode
 
 
 class SSD(nn.Module):
