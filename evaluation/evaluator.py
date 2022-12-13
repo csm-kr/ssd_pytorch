@@ -6,8 +6,9 @@ from pycocotools.cocoeval import COCOeval
 
 
 class Evaluator(object):
-    def __init__(self, data_type='voc'):
-        self.data_type = data_type
+    def __init__(self, opts):
+        self.opts = opts
+        self.data_type = opts.data_type
 
         # for VOC
         self.det_img_name = list()
@@ -66,8 +67,13 @@ class Evaluator(object):
         if self.data_type == 'voc':
 
             test_root = os.path.join(dataset.root, 'VOCtest_06-Nov-2007', 'VOCdevkit', 'VOC2007', 'Annotations')
-            mAP = voc_eval(test_root, self.det_img_name, self.det_additional, self.det_boxes, self.det_scores,
-                           self.det_labels)
+            mAP = voc_eval(opts=self.opts,
+                           test_xml_path=test_root,
+                           img_names=self.det_img_name,
+                           additional=self.det_additional,
+                           bboxes=self.det_boxes,
+                           scores=self.det_scores,
+                           classes=self.det_labels)
 
         elif self.data_type == 'coco':
 

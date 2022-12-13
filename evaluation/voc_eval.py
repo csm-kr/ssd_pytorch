@@ -225,7 +225,8 @@ def cal_mAP(cache_dir, gt_classes, gt_counter_per_class, MINOVERLAP=0.5):
     return mAP
 
 
-def voc_eval(test_xml_path='D:\data\\voc\VOCtest_06-Nov-2007\VOCdevkit\VOC2007\Annotations',
+def voc_eval(opts,
+             test_xml_path,
              img_names=None,
              additional=None, bboxes=None, scores=None, classes=None):
     """
@@ -242,7 +243,7 @@ def voc_eval(test_xml_path='D:\data\\voc\VOCtest_06-Nov-2007\VOCdevkit\VOC2007\A
     print("start..evaluation")
     tic = time.time()
 
-    cache_dir = '.cache_dir'
+    cache_dir = os.path.join(opts.log_dir, opts.name, '.cache_dir')
     if not os.path.isdir(cache_dir):
         os.mkdir(cache_dir)
 
