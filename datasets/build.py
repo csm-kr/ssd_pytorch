@@ -1,32 +1,64 @@
 from torch.utils.data import DataLoader
-from dataset.voc_dataset import VOC_Dataset
-from dataset.coco_dataset import COCO_Dataset
-import dataset.detection_transforms as det_transforms
+from datasets.voc_dataset import VOC_Dataset
+from datasets.coco_dataset import COCO_Dataset
+import datasets.detection_transforms as det_transforms
 from torch.utils.data.distributed import DistributedSampler
+import datasets.transforms_ as T
 
 
 def build_dataloader(opts):
 
     size = (opts.resize, opts.resize)
+    scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
 
-    transform_train = det_transforms.DetCompose([
-        # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomPhotoDistortion(),
-        det_transforms.DetRandomHorizontalFlip(),
-        det_transforms.DetToTensor(),
-        # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomZoomOut(max_scale=4),
-        det_transforms.DetRandomZoomIn(),
-        det_transforms.DetResize(size=size, box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+    normalize = T.Compose([
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
-    transform_test = det_transforms.DetCompose([
-        det_transforms.DetToTensor(),
-        det_transforms.DetResize(size=size, box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+
+    transform_train = T.Compose([
+        T.RandomPhotoDistortion(),
+        T.RandomHorizontalFlip(),
+        T.RandomZoomOut(max_scale=2),
+        T.RandomSelect(
+            T.RandomResize(scales, max_size=1333),
+            T.Compose([
+                T.RandomResize([400, 500, 600]),
+                T.RandomSizeCrop(384, 600),
+                T.RandomResize(scales, max_size=1333),
+            ]),
+        ),
+        T.Resize(size),
+        normalize
     ])
+
+    transform_test = T.Compose([
+        T.RandomResize([800], max_size=1333),
+        # FIXME add resize for fixed size image
+        T.Resize(size),
+        normalize
+    ])
+
+    # size = (opts.resize, opts.resize)
+    #
+    # transform_train = det_transforms.DetCompose([
+    #     # ------------- for Tensor augmentation -------------
+    #     det_transforms.DetRandomPhotoDistortion(),
+    #     det_transforms.DetRandomHorizontalFlip(),
+    #     det_transforms.DetToTensor(),
+    #     # ------------- for Tensor augmentation -------------
+    #     det_transforms.DetRandomZoomOut(max_scale=3),
+    #     det_transforms.DetRandomZoomIn(),
+    #     det_transforms.DetResize(size=size, box_normalization=True),
+    #     det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
+    #                                 std=[0.229, 0.224, 0.225])
+    # ])
+    # transform_test = det_transforms.DetCompose([
+    #     det_transforms.DetToTensor(),
+    #     det_transforms.DetResize(size=size, box_normalization=True),
+    #     det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
+    #                                 std=[0.229, 0.224, 0.225])
+    # ])
 
     train_loader = None
     test_loader = None

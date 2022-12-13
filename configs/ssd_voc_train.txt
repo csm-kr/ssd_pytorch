@@ -3,20 +3,16 @@ name = ssd_voc
 
 ## visdom
 visdom_port = 8899
+train_vis_step = 100
+test_vis_step = 1000
 
 ## data
 data_root = /home/cvmlserver7/Sungmin/data/voc
 data_type = voc
 
 ## training
-# epoch = 200
-# batch_size = 32
-
 ## testing
-# thres = 0.05
-
 ## demo
-
 ## distributed
 gpu_ids = 0
 

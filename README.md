@@ -14,33 +14,6 @@ re-implementation of SSD detection : https://arxiv.org/abs/1512.02325
 - scheduler : step LR [120, 150]
 ```
 
-```
-https://github.com/amdegroot/ssd.pytorch/blob/master/data/config.py
-voc -  120000
-coco - 400000
-100 epoch :  50000 iters [ 80, 160 ]
-200 epoch : 100000 iters
-
-voc : 16551
-batch : 32  
-517.218 ~ 518 iters per epoch, 2 epochs == 1K
-
-
-so 10s epoch is 5K and 100 epochs 50K, 200s epoch 100K (to 1e-4)
-120 epochs is 60K, 40 epochs is 20 K
-
-120
-
-coco : 117,266
-batch : 32
-3665 iters per epoch, 1 epoch == 3~4K
-160, 40, 40
-45 epoch, 10 epoch, 10 epoch 
-
-100 epoch : 400000 iters
-200 epoch : 800000 iters
-```
-
 ### Results
 
 - voc

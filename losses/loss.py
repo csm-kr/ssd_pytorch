@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils import cxcy_to_xy, encode, xy_to_cxcy, find_jaccard_overlap
+from utils.util import cxcy_to_xy, encode, xy_to_cxcy, find_jaccard_overlap
 
 
 class TargetMaker(nn.Module):
@@ -59,7 +59,7 @@ class TargetMaker(nn.Module):
 
 
 class MultiBoxLoss(nn.Module):
-    def __init__(self, neg_pos_ratio=3, alpha=10.):
+    def __init__(self, neg_pos_ratio=3, alpha=1.):
         super(MultiBoxLoss, self).__init__()
 
         self.neg_pos_ratio = neg_pos_ratio
@@ -102,12 +102,11 @@ class MultiBoxLoss(nn.Module):
         # hard negative mining
         cls_loss_neg[gt_masks] = 0.                                   # (N, 8732), positive priors are ignored (never in top n_hard_negatives)
         cls_loss_neg, _ = cls_loss_neg.sort(dim=1, descending=True)   # (N, 8732), sorted by decreasing hardness
-
-        num_hard_negatives = self.neg_pos_ratio * num_positives       # make number of each batch of hard samples using ratio
+        nim_hard_negatives = self.neg_pos_ratio * num_positives       # make number of each batch of hard samples using ratio
         hardness_ranks = torch.LongTensor(range(num_anchors)).unsqueeze(0).expand_as(cls_loss_neg).to(device_)
         # make a row 0 to 8732 (N, 8732) shape's tensor to index hard negative samples
 
-        hard_negative_mask = hardness_ranks < num_hard_negatives.unsqueeze(1)  # (N, 8732)
+        hard_negative_mask = hardness_ranks < nim_hard_negatives.unsqueeze(1)  # (N, 8732)
         # remains only top-k hard negative samples indices.
 
         cls_loss_hard_neg = cls_loss_neg[hard_negative_mask]  # it means a network knows zero is background

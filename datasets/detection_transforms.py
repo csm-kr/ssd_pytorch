@@ -1,6 +1,6 @@
 import torch
 import random
-from utils import find_jaccard_overlap
+from utils.util import find_jaccard_overlap
 from torch.nn.functional import interpolate
 import torchvision.transforms.functional as F
 

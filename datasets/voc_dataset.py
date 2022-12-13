@@ -9,7 +9,8 @@ from PIL import Image
 import torch.utils.data as data
 from xml.etree.ElementTree import parse
 from matplotlib.patches import Rectangle
-from utils import bar_custom, voc_color_array
+from utils.util import bar_custom
+from utils.label_info import voc_color_array
 
 
 def download_voc(root_dir='D:\data\\voc', remove_compressed_file=True):
@@ -162,10 +163,8 @@ class VOC_Dataset(data.Dataset):
 
             for i in range(len(boxes)):
 
-                new_h_scale = new_w_scale = 1
-                # box_normalization of DetResize
-                if self.transform.transforms[-2].box_normalization:
-                    new_h_scale, new_w_scale = image.size()[1:]
+                # new_h_scale = new_w_scale = 1
+                new_h_scale, new_w_scale = image.size()[1:]
 
                 x1 = boxes[i][0] * new_w_scale
                 y1 = boxes[i][1] * new_h_scale
@@ -258,9 +257,8 @@ class VOC_Dataset(data.Dataset):
 
 
 if __name__ == "__main__":
-    import torchvision.transforms as transforms
     device = torch.device('cuda:0')
-    import dataset.detection_transforms as det_transforms
+    import datasets.transforms_ as T
 
     # train_transform
     # ubuntu_root = "/home/cvmlserver3/Sungmin/data/voc"
@@ -269,28 +267,35 @@ if __name__ == "__main__":
     # window_root = r'C:\Users\csm81\Desktop\\voc_temp'
     root = window_root
 
-    transform_train = det_transforms.DetCompose([
-        # ------------- for Tensor augmentation -------------
-        # det_transforms.DetRandomPhotoDistortion(),
-        det_transforms.DetRandomHorizontalFlip(),
-        det_transforms.DetToTensor(),
-        # ------------- for Tensor augmentation -------------
-        # det_transforms.DetRandomZoomOut(max_scale=3),
-        # det_transforms.DetRandomZoomIn(),
-        det_transforms.DetResize(size=600, max_size=1333, box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+    scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
+
+    transform_train = T.Compose([
+        T.RandomPhotoDistortion(),
+        T.RandomHorizontalFlip(),
+        T.RandomSelect(
+            T.RandomResize(scales, max_size=1333),
+            T.Compose([
+                T.RandomResize([400, 500, 600]),
+                T.RandomSizeCrop(384, 600),
+                T.RandomResize(scales, max_size=1333),
+            ]),
+        ),
+        T.RandomZoomOut(max_scale=2),
+        T.Resize((300, 300)),
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    transform_test = det_transforms.DetCompose([
-        det_transforms.DetToTensor(),
-        det_transforms.DetResize(size=800, max_size=1333, box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+    transform_test = T.Compose([
+        T.RandomResize([800], max_size=1333),
+        # FIXME add resize for fixed size image
+        T.Resize((300, 300)),
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
     train_set = VOC_Dataset(root,
-                            split='test',
+                            split='train',
                             download=False,
                             transform=transform_train,
                             visualization=True)

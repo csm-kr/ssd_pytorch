@@ -16,7 +16,8 @@ import os
 import wget
 import glob
 import zipfile
-from utils import bar_custom, coco_color_array
+from utils.util import bar_custom
+from utils.label_info import coco_color_array
 
 
 def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
@@ -27,21 +28,12 @@ def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
     coco_2017_trainval_anno_url = 'http://images.cocodataset.org/annotations/annotations_trainval2017.zip'
 
     os.makedirs(root_dir, exist_ok=True)
-
-    img_dir = os.path.join(root_dir, 'images')
     anno_dir = os.path.join(root_dir, 'annotations')
-
-    os.makedirs(img_dir, exist_ok=True)
     os.makedirs(anno_dir, exist_ok=True)
 
     """Download the VOC data if it doesn't exit in processed_folder already."""
-
-    # if (os.path.exists(os.path.join(img_dir, 'train2017')) and
-    #         os.path.exists(os.path.join(img_dir, 'val2017')) and
-    #         os.path.exists(os.path.join(img_dir, 'test2017'))):
-    #
-    if (os.path.exists(os.path.join(img_dir, 'train2017')) and
-            os.path.exists(os.path.join(img_dir, 'val2017'))):
+    if (os.path.exists(os.path.join(root_dir, 'train2017')) and
+            os.path.exists(os.path.join(root_dir, 'val2017'))):
 
         print("Already exist!")
         return
@@ -49,26 +41,21 @@ def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
     print("Download...")
 
     # image download
-    wget.download(url=coco_2017_train_url, out=img_dir, bar=bar_custom)
+    wget.download(url=coco_2017_train_url, out=root_dir, bar=bar_custom)
     print('')
-    wget.download(url=coco_2017_val_url, out=img_dir, bar=bar_custom)
+    wget.download(url=coco_2017_val_url, out=root_dir, bar=bar_custom)
     print('')
-    # wget.download(url=coco_2017_test_url, out=img_dir, bar=bar_custom)
-    # print('')
 
     # annotation download
     wget.download(coco_2017_trainval_anno_url, out=root_dir, bar=bar_custom)
     print('')
 
     print("Extract...")
-
     # image extract
-    with zipfile.ZipFile(os.path.join(img_dir, 'train2017.zip')) as unzip:
-        unzip.extractall(os.path.join(img_dir))
-    with zipfile.ZipFile(os.path.join(img_dir, 'val2017.zip')) as unzip:
-        unzip.extractall(os.path.join(img_dir))
-    # with zipfile.ZipFile(os.path.join(img_dir, 'test2017.zip')) as unzip:
-    #     unzip.extractall(os.path.join(img_dir))
+    with zipfile.ZipFile(os.path.join(root_dir, 'train2017.zip')) as unzip:
+        unzip.extractall(os.path.join(root_dir))
+    with zipfile.ZipFile(os.path.join(root_dir, 'val2017.zip')) as unzip:
+        unzip.extractall(os.path.join(root_dir))
 
     # annotation extract
     with zipfile.ZipFile(os.path.join(root_dir, 'annotations_trainval2017.zip')) as unzip:
@@ -80,7 +67,7 @@ def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
         for anno_zip in root_zip_list:
             os.remove(anno_zip)
 
-        img_zip_list = glob.glob(os.path.join(img_dir, '*.zip'))  # in img_dir remove *.zip
+        img_zip_list = glob.glob(os.path.join(root_dir, '*.zip'))  # in img_dir remove *.zip
         for img_zip in img_zip_list:
             os.remove(img_zip)
         print("Remove *.zips")
@@ -120,7 +107,7 @@ class COCO_Dataset(Dataset):
         # -------------------------- visualization --------------------------
         self.visualization = visualization
 
-        self.img_path = glob.glob(os.path.join(self.root, 'images', self.set_name, '*.jpg'))
+        self.img_path = glob.glob(os.path.join(self.root, self.set_name, '*.jpg'))
         self.coco = COCO(os.path.join(self.root, 'annotations', 'instances_' + self.set_name + '.json'))
 
         self.img_id = list(self.coco.imgToAnns.keys())
@@ -148,7 +135,7 @@ class COCO_Dataset(Dataset):
         # 2. load image
         img_coco = self.coco.loadImgs(ids=img_id)[0]
         file_name = img_coco['file_name']
-        file_path = os.path.join(self.root, 'images', self.set_name, file_name)
+        file_path = os.path.join(self.root, self.set_name, file_name)
 
         # eg. 'D:\\Data\\coco\\images\\val2017\\000000289343.jpg'
         image = Image.open(file_path).convert('RGB')
@@ -186,8 +173,8 @@ class COCO_Dataset(Dataset):
 
                 new_h_scale = new_w_scale = 1
                 # box_normalization of DetResize
-                if self.transform.transforms[-2].box_normalization:
-                    new_h_scale, new_w_scale = image.size()[1:]
+                # if self.transform.transforms[-2].box_normalization:
+                new_h_scale, new_w_scale = image.size()[1:]
 
                 x1 = boxes[i][0] * new_w_scale
                 y1 = boxes[i][1] * new_h_scale
@@ -261,33 +248,39 @@ class COCO_Dataset(Dataset):
 if __name__ == '__main__':
 
     device = torch.device('cuda:0')
-    import torchvision.transforms as transforms
-    import dataset.detection_transforms as det_transforms
+    import datasets.transforms_ as T
 
-    transform_train = det_transforms.DetCompose([
-        # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomPhotoDistortion(),
-        det_transforms.DetRandomHorizontalFlip(),
-        det_transforms.DetToTensor(),
-        # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomZoomOut(max_scale=3),
-        det_transforms.DetRandomZoomIn(),
-        det_transforms.DetResize(size=(600, 600), box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+    scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
+
+    transform_train = T.Compose([
+        T.RandomPhotoDistortion(),
+        T.RandomHorizontalFlip(),
+        T.RandomSelect(
+            T.RandomResize(scales, max_size=1333),
+            T.Compose([
+                T.RandomResize([400, 500, 600]),
+                T.RandomSizeCrop(384, 600),
+                T.RandomResize(scales, max_size=1333),
+            ]),
+        ),
+        T.RandomZoomOut(max_scale=2),
+        T.Resize((300, 300)),
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    transform_test = det_transforms.DetCompose([
-        det_transforms.DetToTensor(),
-        det_transforms.DetResize(size=800, max_size=1333, box_normalization=True),
-        det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
-                                    std=[0.229, 0.224, 0.225])
+    transform_test = T.Compose([
+        T.RandomResize([800], max_size=1333),
+        # FIXME add resize for fixed size image
+        T.Resize((300, 300)),
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    coco_dataset = COCO_Dataset(root="D:/data/coco",
+    coco_dataset = COCO_Dataset(root="D:/data/coco_detr",
                                 split='train',
                                 download=True,
-                                transform=transform_test,
+                                transform=transform_train,
                                 visualization=True)
 
     train_loader = torch.utils.data.DataLoader(coco_dataset,
@@ -305,4 +298,4 @@ if __name__ == '__main__':
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
-        # print(labels)
+        print(labels)
