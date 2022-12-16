@@ -17,6 +17,7 @@ def get_args_parser():
     parser.add_argument('--in_chs', type=int, default=3)
     parser.add_argument('--resize', type=int, default=300)
     parser.add_argument('--num_workers', type=int, default=0)
+    parser.add_argument('--is_mosaic_transform_true', dest='mosaic_transform', action='store_true')
 
     # model
     parser.add_argument('--num_classes', type=int, default=0)

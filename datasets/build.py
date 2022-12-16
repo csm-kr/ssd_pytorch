@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader
 from datasets.voc_dataset import VOC_Dataset
 from datasets.coco_dataset import COCO_Dataset
-import datasets.detection_transforms as det_transforms
 from torch.utils.data.distributed import DistributedSampler
 import datasets.transforms_ as T
 
@@ -66,12 +65,15 @@ def build_dataloader(opts):
     if opts.data_type == 'voc':
         train_set = VOC_Dataset(opts.data_root,
                                 split='train',
+                                resize=opts.resize,
                                 download=True,
                                 transform=transform_train,
+                                mosaic_transform=opts.mosaic_transform,
                                 visualization=False)
 
         test_set = VOC_Dataset(opts.data_root,
                                split='test',
+                               resize=opts.resize,
                                download=True,
                                transform=transform_test,
                                visualization=False)
@@ -105,12 +107,15 @@ def build_dataloader(opts):
 
         train_set = COCO_Dataset(root=opts.data_root,
                                  split='train',
+                                 resize=opts.resize,
                                  download=True,
                                  transform=transform_train,
+                                 mosaic_transform=opts.mosaic_transform,
                                  visualization=False)
 
         test_set = COCO_Dataset(root=opts.data_root,
                                 split='val',
+                                resize=opts.resize,
                                 download=True,
                                 transform=transform_test,
                                 visualization=False)

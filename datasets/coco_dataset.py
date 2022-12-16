@@ -15,9 +15,11 @@ import platform
 import os
 import wget
 import glob
+import random
 import zipfile
 from utils.util import bar_custom
 from utils.label_info import coco_color_array
+from datasets.mosaic_transform import load_mosaic
 
 
 def download_coco(root_dir='D:\data\\coco', remove_compressed_file=True):
@@ -80,8 +82,10 @@ class COCO_Dataset(Dataset):
     def __init__(self,
                  root='D:\Data\coco',
                  split='train',
+                 resize=None,
                  download=True,
                  transform=None,
+                 mosaic_transform=False,
                  visualization=False):
         super().__init__()
 
@@ -95,6 +99,9 @@ class COCO_Dataset(Dataset):
         assert split in ['train', 'val', 'test']
         self.split = split
         self.set_name = split + '2017'
+        self.resize = resize
+        if self.resize is None:
+            self.resize = 600
 
         # -------------------------- download --------------------------
         self.download = download
@@ -103,6 +110,7 @@ class COCO_Dataset(Dataset):
 
         # -------------------------- transform --------------------------
         self.transform = transform
+        self.mosaic_transform = mosaic_transform
 
         # -------------------------- visualization --------------------------
         self.visualization = visualization
@@ -126,33 +134,39 @@ class COCO_Dataset(Dataset):
          64, 65, 67, 70, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 89, 90]
         '''
 
+    def _load_image(self, id):
+        path = self.coco.loadImgs(id)[0]["file_name"]
+        return Image.open(os.path.join(self.root, self.set_name, path)).convert("RGB")
+
+    def _load_anno(self, id):
+        anno = self.coco.loadAnns(ids=self.coco.getAnnIds(imgIds=id))        # anno id 에 해당하는 annotation 을 가져온다.
+        return anno
+
     def __getitem__(self, index):
 
-        # --------------------------- load data ---------------------------
-        # 1. image_id
         img_id = self.img_id[index]
+        image = self._load_image(img_id)
+        anno = self._load_anno(img_id)
+        boxes, labels = self.parse_coco(anno)
+        boxes = torch.FloatTensor(boxes)
+        labels = torch.LongTensor(labels)
 
-        # 2. load image
-        img_coco = self.coco.loadImgs(ids=img_id)[0]
-        file_name = img_coco['file_name']
-        file_path = os.path.join(self.root, self.set_name, file_name)
-
-        # eg. 'D:\\Data\\coco\\images\\val2017\\000000289343.jpg'
-        image = Image.open(file_path).convert('RGB')
-
-        # 3. load anno
-        anno_ids = self.coco.getAnnIds(imgIds=img_id)  # img id 에 해당하는 anno id 를 가져온다.
-        anno = self.coco.loadAnns(ids=anno_ids)        # anno id 에 해당하는 annotation 을 가져온다.
-
-        det_anno = self.make_det_annos(anno)           # anno -> [x1, y1, x2, y2, c] numpy 배열로
-
-        boxes = torch.FloatTensor(det_anno[:, :4])     # numpy to Tensor
-        labels = torch.LongTensor(det_anno[:, 4])
+        if self.mosaic_transform:
+            if random.random() > 0.5:
+                # load mosaic img
+                image, boxes, labels = load_mosaic(image_id=self.img_id,
+                                                   len_of_dataset=self.__len__(),
+                                                   size=self.resize,
+                                                   _load_image=self._load_image,
+                                                   _load_anno=self._load_anno,
+                                                   _parse=self.parse_coco,
+                                                   image=image,
+                                                   boxes=boxes,
+                                                   labels=labels)
 
         # --------------------------- for transform ---------------------------
         if self.transform is not None:
             image, boxes, labels = self.transform(image, boxes, labels)
-        # print("boxes:", boxes)
 
         if self.visualization:
             # ----------------- visualization -----------------
@@ -202,6 +216,29 @@ class COCO_Dataset(Dataset):
             plt.show()
 
         return image, boxes, labels
+
+    def parse_coco(self, anno, type='bbox'):
+        if type == 'segm':
+            return -1
+
+        annotations = np.zeros((0, 5))
+        for idx, anno_dict in enumerate(anno):
+
+            if anno_dict['bbox'][2] < 1 or anno_dict['bbox'][3] < 1:
+                continue
+
+            annotation = np.zeros((1, 5))
+            annotation[0, :4] = anno_dict['bbox']
+
+            annotation[0, 4] = self.coco_ids_to_continuous_ids[anno_dict['category_id']]  # 원래 category_id가 18이면 들어가는 값은 16
+            annotations = np.append(annotations, annotation, axis=0)
+
+        # transform from [x, y, w, h] to [x1, y1, x2, y2]
+        annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
+        annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
+
+        return annotations[:, :4], annotations[:, 4]
+
 
     def make_det_annos(self, anno):
 
@@ -277,10 +314,11 @@ if __name__ == '__main__':
         T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    coco_dataset = COCO_Dataset(root="D:/data/coco_detr",
+    coco_dataset = COCO_Dataset(root="/home/cvmlserver7/Sungmin/data/coco_detr",
                                 split='train',
                                 download=True,
                                 transform=transform_train,
+                                mosaic_transform=True,
                                 visualization=True)
 
     train_loader = torch.utils.data.DataLoader(coco_dataset,

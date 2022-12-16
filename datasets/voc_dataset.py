@@ -2,15 +2,17 @@ import os
 import wget
 import glob
 import torch
+import random
 import tarfile
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
+import matplotlib.pyplot as plt
 import torch.utils.data as data
+from utils.util import bar_custom
 from xml.etree.ElementTree import parse
 from matplotlib.patches import Rectangle
-from utils.util import bar_custom
 from utils.label_info import voc_color_array
+from datasets.mosaic_transform import load_mosaic
 
 
 def download_voc(root_dir='D:\data\\voc', remove_compressed_file=True):
@@ -75,8 +77,10 @@ class VOC_Dataset(data.Dataset):
     def __init__(self,
                  root='D:\data\\voc',
                  split='train',
+                 resize=None,
                  download=True,
                  transform=None,
+                 mosaic_transform=False,
                  visualization=True):
         super(VOC_Dataset, self).__init__()
 
@@ -84,6 +88,9 @@ class VOC_Dataset(data.Dataset):
         # -------------------------- set split --------------------------
         assert split in ['train', 'test']
         self.split = split
+        self.resize = resize
+        if self.resize is None:
+            self.resize = 600
 
         # -------------------------- download --------------------------
         self.download = download
@@ -92,6 +99,7 @@ class VOC_Dataset(data.Dataset):
 
         # -------------------------- transform --------------------------
         self.transform = transform
+        self.mosaic_transform = mosaic_transform
 
         # -------------------------- visualization --------------------------
         self.visualization = visualization
@@ -120,29 +128,40 @@ class VOC_Dataset(data.Dataset):
         self.class_idx_dict = {class_name: i for i, class_name in enumerate(self.class_names)}     # class name : idx
         self.idx_class_dict = {i: class_name for i, class_name in enumerate(self.class_names)}     # idx : class name
 
+    def _load_image(self, index):
+        return Image.open(self.img_list[index]).convert('RGB')
+
+    def _load_anno(self, index):
+        return self.anno_list[index]
+
     def __getitem__(self, idx):
 
-        # load img
-        image = Image.open(self.img_list[idx]).convert('RGB')
-        # print(self.img_list[idx])
-        # load labels
-        boxes, labels = self.parse_voc(self.anno_list[idx])
-        # print(boxes)
-        # print(self.img_list[idx])
-        # issue : diff 1인 친구들
-
-        # load img name for string
-        img_name = os.path.basename(self.anno_list[idx]).split('.')[0]
-        img_name_to_ascii = [ord(c) for c in img_name]
-
-        # load img width and height
-        img_width, img_height = float(image.size[0]), float(image.size[1])
-
+        image = self._load_image(idx)
+        anno = self._load_anno(idx)
+        boxes, labels = self.parse_voc(anno)
         boxes = torch.FloatTensor(boxes)
-        labels = torch.LongTensor(labels)  # 0 ~ 19
-        info = {}
-        info['name'] = img_name
-        info['original_wh'] = [int(img_width), int(img_height)]
+        labels = torch.LongTensor(labels)
+
+        if self.mosaic_transform:
+            if random.random() > 0.5:
+                # load mosaic img
+                image, boxes, labels = load_mosaic(image_id=None,
+                                                   len_of_dataset=self.__len__(),
+                                                   size=self.resize,
+                                                   _load_image=self._load_image,
+                                                   _load_anno=self._load_anno,
+                                                   _parse=self.parse_voc,
+                                                   image=image,
+                                                   boxes=boxes,
+                                                   labels=labels)
+
+        if self.split == "test":
+            info = {}
+            img_name = os.path.basename(self.anno_list[idx]).split('.')[0]
+            img_width, img_height = float(image.size[0]), float(image.size[1])
+            info['name'] = img_name
+            info['original_wh'] = [int(img_width), int(img_height)]
+
         # --------------------------- for transform ---------------------------
         if self.transform is not None:
             image, boxes, labels = self.transform(image, boxes, labels)
@@ -241,7 +260,8 @@ class VOC_Dataset(data.Dataset):
         images = list()
         boxes = list()
         labels = list()
-        info = list()
+        if self.split == "test":
+            info = list()
 
         for b in batch:
             images.append(b[0])
@@ -298,6 +318,7 @@ if __name__ == "__main__":
                             split='train',
                             download=False,
                             transform=transform_train,
+                            mosaic_transform=True,
                             visualization=True)
 
     train_loader = torch.utils.data.DataLoader(train_set,
@@ -315,9 +336,6 @@ if __name__ == "__main__":
         boxes = data[1]
         labels = data[2]
 
-        # images = images.to(device)
-        # boxes = [b.to(device) for b in boxes]
-        # labels = [l.to(device) for l in labels]
         print(i)
         print(labels)
         print(boxes)

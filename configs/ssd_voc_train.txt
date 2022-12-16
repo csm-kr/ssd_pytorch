@@ -9,6 +9,7 @@ test_vis_step = 1000
 ## data
 data_root = /home/cvmlserver7/Sungmin/data/voc
 data_type = voc
+is_mosaic_transform_true
 
 ## training
 ## testing
