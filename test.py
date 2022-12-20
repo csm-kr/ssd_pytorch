@@ -28,6 +28,7 @@ def test_and_eval(opts, epoch, vis, device, loader, model, criterion, optimizer=
         sum_loss = []
 
         print(f'{opts.data_type} dataset evaluation...')
+        anchors = model.module.anchors.to(device)
 
         for idx, data in enumerate(tqdm(loader)):
 
@@ -39,7 +40,6 @@ def test_and_eval(opts, epoch, vis, device, loader, model, criterion, optimizer=
             images = images.to(device)
             boxes = [b.to(device) for b in boxes]
             labels = [l.to(device) for l in labels]
-            anchors = model.module.anchors.to(device)
 
             # ---------- loss ----------
             pred = model(images)

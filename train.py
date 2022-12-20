@@ -13,6 +13,7 @@ def train_one_epoch(opts, epoch, device, vis, loader, model, criterion, optimize
 
     tic = time.time()
     model.train()
+    anchors = model.module.anchors.to(device)
 
     for idx, data in enumerate(tqdm(loader)):
 
@@ -23,7 +24,6 @@ def train_one_epoch(opts, epoch, device, vis, loader, model, criterion, optimize
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
-        anchors = model.module.anchors.to(device)
 
         pred = model(images)
         loss, (cls_loss, loc_loss) = criterion(pred, boxes, labels, anchors)
@@ -34,7 +34,7 @@ def train_one_epoch(opts, epoch, device, vis, loader, model, criterion, optimize
         optimizer.step()
         # scheduler.step()
 
-        toc = time.time() - tic
+        toc = time.time()
 
         for param_group in optimizer.param_groups:
             lr = param_group['lr']
@@ -53,18 +53,19 @@ def train_one_epoch(opts, epoch, device, vis, loader, model, criterion, optimize
                           cls=cls_loss,
                           loc=loc_loss,
                           lr=lr,
-                          time=toc))
+                          time=toc - tic))
 
-            if vis is not None:
-                # loss plot
-                vis.line(X=torch.ones((1, 3)).cpu() * idx + epoch * loader.__len__(),  # step
-                         Y=torch.Tensor([loss, cls_loss, loc_loss]).unsqueeze(0).cpu(),
-                         win='train_loss_' + opts.name,
-                         update='append',
-                         opts=dict(xlabel='step',
-                                   ylabel='Loss',
-                                   title='train_loss_' + opts.name,
-                                   legend=['Total Loss', 'cls Loss', 'loc Loss']))
+            if opts.rank == 0:
+                if vis is not None:
+                    # loss plot
+                    vis.line(X=torch.ones((1, 3)).cpu() * idx + epoch * loader.__len__(),  # step
+                             Y=torch.Tensor([loss, cls_loss, loc_loss]).unsqueeze(0).cpu(),
+                             win='train_loss_' + opts.name,
+                             update='append',
+                             opts=dict(xlabel='step',
+                                       ylabel='Loss',
+                                       title='train_loss_' + opts.name,
+                                       legend=['Total Loss', 'cls Loss', 'loc Loss']))
 
     # epoch 마다 저장 안함
     if opts.rank == 0:
