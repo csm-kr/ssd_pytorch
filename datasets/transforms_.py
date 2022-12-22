@@ -147,7 +147,7 @@ def zoom_out_(image, boxes, labels, max_scale):
     return new_image, new_boxes, labels
 
 
-def crop_(image, boxes, labels, region):
+def crop_(image, boxes, labels, region, min_overlap_ratio=0.3):
     cropped_image = F.crop(image, *region)
     i, j, h, w = region
 
@@ -157,8 +157,15 @@ def crop_(image, boxes, labels, region):
     cropped_boxes = torch.min(cropped_boxes.reshape(-1, 2, 2), max_size)
     cropped_boxes = cropped_boxes.clamp(min=0)
 
+    # keep only positive sides of boxes
     keep = torch.all(cropped_boxes[:, 1, :] > cropped_boxes[:, 0, :], dim=1)
     cropped_boxes = cropped_boxes.reshape(-1, 4)
+
+    # keep only upper minimum area overlap ratio
+    diff_boxes = boxes[:, 2:] - boxes[:, :2]
+    diff_cropped_boxes = cropped_boxes[:, 2:] - cropped_boxes[:, :2]
+    keep_area = (diff_cropped_boxes[:, 0] * diff_cropped_boxes[:, 1]) / (diff_boxes[:, 0] * diff_boxes[:, 1]) > min_overlap_ratio
+    keep = keep * keep_area
 
     # cropped_labels
     cropped_labels = labels[keep]
